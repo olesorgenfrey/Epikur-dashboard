@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Practio — Schweigepflicht beginnt bei der Software</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --black:   #060608;
+  --surface: #0E0E12;
+  --border:  rgba(255,255,255,.07);
+  --white:   #F0EDE8;
+  --muted:   rgba(240,237,232,.45);
+  --accent:  #C9A96E;     /* gold */
+  --accent2: #8BB4E8;     /* ice blue */
+
+  --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--black);
+  color: var(--white);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  cursor: none;
+}
+
+/* === CUSTOM CURSOR === */
+#cursor {
+  position: fixed; width: 10px; height: 10px;
+  background: var(--accent); border-radius: 50%;
+  pointer-events: none; z-index: 9999;
+  transform: translate(-50%, -50%);
+  transition: width 250ms var(--ease-out), height 250ms var(--ease-out), background 250ms;
+  mix-blend-mode: difference;
+}
+#cursor-ring {
+  position: fixed; width: 40px; height: 40px;
+  border: 1px solid rgba(201,169,110,.5); border-radius: 50%;
+  pointer-events: none; z-index: 9998;
+  transform: translate(-50%, -50%);
+  transition: transform 80ms linear, width 300ms var(--ease-out), height 300ms var(--ease-out), border-color 300ms;
+}
+body:has(a:hover) #cursor, body:has(button:hover) #cursor { width: 20px; height: 20px; }
+body:has(a:hover) #cursor-ring, body:has(button:hover) #cursor-ring { width: 60px; height: 60px; }
+
+/* === NAV === */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 48px;
+  background: linear-gradient(to bottom, rgba(6,6,8,.9) 0%, transparent 100%);
+  backdrop-filter: blur(2px);
+  animation: fadeDown 800ms var(--ease-out) both;
+}
+.nav-logo { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 3px; color: var(--white); }
+.nav-logo span { color: var(--accent); }
+.nav-links { display: flex; gap: 36px; list-style: none; }
+.nav-links a {
+  font-size: 13px; font-weight: 500; color: var(--muted); text-decoration: none;
+  letter-spacing: .8px; text-transform: uppercase;
+  transition: color 200ms;
+  position: relative;
+}
+.nav-links a::after {
+  content: ''; position: absolute; bottom: -3px; left: 0; right: 0;
+  height: 1px; background: var(--accent); transform: scaleX(0);
+  transform-origin: left; transition: transform 300ms var(--ease-out);
+}
+.nav-links a:hover { color: var(--white); }
+.nav-links a:hover::after { transform: scaleX(1); }
+.nav-cta {
+  background: transparent; border: 1px solid var(--accent); color: var(--accent);
+  padding: 10px 24px; font-size: 12px; font-weight: 500; letter-spacing: 1.5px;
+  text-transform: uppercase; cursor: none;
+  transition: background 250ms var(--ease-out), color 250ms;
+}
+.nav-cta:hover { background: var(--accent); color: var(--black); }
+
+/* === TICKER === */
+.ticker-wrap {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  border-top: 1px solid var(--border);
+  background: rgba(6,6,8,.85); backdrop-filter: blur(10px);
+  padding: 10px 0; overflow: hidden;
+}
+.ticker-track {
+  display: flex; gap: 0; white-space: nowrap;
+  animation: ticker 30s linear infinite;
+}
+.ticker-item {
+  display: inline-flex; align-items: center; gap: 32px;
+  font-size: 11px; font-weight: 500; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--muted);
+  padding: 0 40px;
+}
+.ticker-item::before { content: '✦'; color: var(--accent); font-size: 8px; }
+
+/* === HERO === */
+.hero {
+  min-height: 100vh; display: flex; flex-direction: column;
+  justify-content: flex-end; padding: 0 48px 100px;
+  position: relative; overflow: hidden;
+}
+.hero-bg {
+  position: absolute; inset: 0;
+  background-image: url('https://images.unsplash.com/photo-1567899378494-47b22a2ae96a?w=1800&q=80');
+  background-size: cover; background-position: center 30%;
+  transform: scale(1.05);
+  animation: heroZoom 8s var(--ease-out) forwards;
+}
+.hero-bg::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(6,6,8,1) 0%, rgba(6,6,8,.6) 50%, rgba(6,6,8,.2) 100%);
+}
+.hero-content { position: relative; z-index: 1; max-width: 900px; }
+.hero-tag {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 24px;
+  animation: fadeUp 800ms var(--ease-out) 300ms both;
+}
+.hero-tag::before { content: ''; width: 32px; height: 1px; background: var(--accent); }
+.hero-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(72px, 10vw, 160px);
+  line-height: .92; letter-spacing: -1px;
+  animation: fadeUp 900ms var(--ease-out) 450ms both;
+}
+.hero-title em { font-style: normal; color: var(--accent); }
+.hero-sub {
+  font-size: 18px; font-weight: 300; color: var(--muted);
+  max-width: 480px; margin-top: 28px; line-height: 1.7;
+  animation: fadeUp 900ms var(--ease-out) 600ms both;
+}
+.hero-actions {
+  display: flex; align-items: center; gap: 32px; margin-top: 48px;
+  animation: fadeUp 900ms var(--ease-out) 750ms both;
+}
+.btn-primary {
+  background: var(--accent); color: var(--black);
+  padding: 16px 40px; font-size: 13px; font-weight: 500;
+  letter-spacing: 1.5px; text-transform: uppercase; border: none; cursor: none;
+  transition: transform 200ms var(--ease-out), background 200ms;
+  position: relative; overflow: hidden;
+}
+.btn-primary::after {
+  content: ''; position: absolute; inset: 0;
+  background: white; opacity: 0; transition: opacity 200ms;
+}
+.btn-primary:hover { transform: translateY(-2px); }
+.btn-primary:hover::after { opacity: .1; }
+.btn-primary:active { transform: scale(.97); }
+.btn-ghost {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; font-weight: 500; color: var(--muted);
+  letter-spacing: .5px; cursor: none;
+  transition: color 200ms;
+}
+.btn-ghost:hover { color: var(--white); }
+.btn-ghost svg { transition: transform 200ms var(--ease-out); }
+.btn-ghost:hover svg { transform: translateX(4px); }
+
+/* === STATS BAR === */
+.stats-bar {
+  background: var(--surface); border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  display: grid; grid-template-columns: repeat(4, 1fr);
+}
+.stat-item {
+  padding: 40px 48px; border-right: 1px solid var(--border);
+  opacity: 0; transform: translateY(20px);
+  transition: opacity 600ms var(--ease-out), transform 600ms var(--ease-out);
+}
+.stat-item.visible { opacity: 1; transform: translateY(0); }
+.stat-item:last-child { border-right: none; }
+.stat-num {
+  font-family: 'Bebas Neue', sans-serif; font-size: 56px;
+  color: var(--accent); letter-spacing: -1px; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.stat-label { font-size: 13px; color: var(--muted); margin-top: 6px; font-weight: 300; letter-spacing: .5px; }
+
+/* === SECTION BASE === */
+section { padding: 120px 48px; }
+.section-tag {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 20px;
+}
+.section-tag::before { content: ''; width: 24px; height: 1px; background: var(--accent); }
+.section-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(48px, 6vw, 96px);
+  line-height: .95; letter-spacing: -.5px;
+}
+.section-title em { font-style: normal; color: var(--accent); }
+
+/* === BENTO GRID === */
+.bento {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  grid-template-rows: repeat(2, 380px);
+  gap: 12px;
+  margin-top: 64px;
+}
+.bento-cell {
+  position: relative; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--border);
+  opacity: 0; transform: translateY(30px);
+  transition: opacity 700ms var(--ease-out), transform 700ms var(--ease-out);
+}
+.bento-cell.visible { opacity: 1; transform: translateY(0); }
+.bento-cell img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform 600ms var(--ease-out);
+}
+.bento-cell:hover img { transform: scale(1.06); }
+.bento-cell::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(6,6,8,.8) 0%, transparent 60%);
+  pointer-events: none;
+}
+.bento-label {
+  position: absolute; bottom: 20px; left: 20px; z-index: 1;
+  font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); font-weight: 500;
+}
+.bento-title {
+  position: absolute; bottom: 40px; left: 20px; z-index: 1;
+  font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--white); letter-spacing: .5px;
+}
+
+/* Bento spans */
+.b1 { grid-column: 1 / 6;  grid-row: 1; transition-delay: 0ms; }
+.b2 { grid-column: 6 / 9;  grid-row: 1; transition-delay: 80ms; }
+.b3 { grid-column: 9 / 13; grid-row: 1; transition-delay: 160ms; }
+.b4 { grid-column: 1 / 4;  grid-row: 2; transition-delay: 240ms; }
+.b5 { grid-column: 4 / 9;  grid-row: 2; transition-delay: 320ms; }
+.b6 { grid-column: 9 / 13; grid-row: 2; transition-delay: 400ms; }
+
+/* === MARQUEE IMAGES === */
+.marquee-section { padding: 0; overflow: hidden; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.marquee-track {
+  display: flex; gap: 0;
+  animation: marquee 40s linear infinite;
+}
+.marquee-track:hover { animation-play-state: paused; }
+.marquee-img {
+  flex-shrink: 0; width: 400px; height: 260px;
+  overflow: hidden; border-right: 1px solid var(--border);
+  position: relative;
+}
+.marquee-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 500ms var(--ease-out); }
+.marquee-img:hover img { transform: scale(1.08); }
+.marquee-img-cap {
+  position: absolute; bottom: 16px; left: 16px;
+  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  color: rgba(240,237,232,.6);
+}
+
+/* === SPLIT TEXT SECTION === */
+.split-section {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 80px;
+  align-items: center;
+}
+.split-img {
+  position: relative; overflow: hidden; aspect-ratio: 4/5;
+  opacity: 0; transform: translateX(-40px);
+  transition: opacity 800ms var(--ease-out), transform 800ms var(--ease-out);
+}
+.split-img.visible { opacity: 1; transform: translateX(0); }
+.split-img img { width: 100%; height: 100%; object-fit: cover; }
+.split-img::before {
+  content: ''; position: absolute; inset: 0; z-index: 1;
+  background: linear-gradient(135deg, rgba(201,169,110,.15) 0%, transparent 60%);
+}
+.split-content {
+  opacity: 0; transform: translateX(40px);
+  transition: opacity 800ms var(--ease-out) 150ms, transform 800ms var(--ease-out) 150ms;
+}
+.split-content.visible { opacity: 1; transform: translateX(0); }
+.split-content p {
+  font-size: 18px; font-weight: 300; color: var(--muted); line-height: 1.8;
+  margin: 28px 0 40px;
+}
+.feature-list { list-style: none; display: flex; flex-direction: column; gap: 16px; }
+.feature-item {
+  display: flex; align-items: flex-start; gap: 16px;
+  font-size: 15px; color: var(--muted); font-weight: 300;
+  padding-bottom: 16px; border-bottom: 1px solid var(--border);
+}
+.feature-item:last-child { border-bottom: none; }
+.feature-icon {
+  width: 32px; height: 32px; flex-shrink: 0;
+  border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
+  color: var(--accent); font-size: 14px; margin-top: 2px;
+}
+
+/* === CARDS HORIZONTAL SCROLL === */
+.cards-section { padding: 120px 0; }
+.cards-header { padding: 0 48px; margin-bottom: 48px; }
+.cards-track-wrap { overflow-x: auto; padding: 0 48px 24px; scrollbar-width: none; }
+.cards-track-wrap::-webkit-scrollbar { display: none; }
+.cards-track { display: flex; gap: 20px; width: max-content; }
+.praxis-card {
+  width: 320px; flex-shrink: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  overflow: hidden;
+  opacity: 0; transform: translateY(30px);
+  transition: opacity 600ms var(--ease-out), transform 600ms var(--ease-out),
+              border-color 300ms;
+}
+.praxis-card.visible { opacity: 1; transform: translateY(0); }
+.praxis-card:hover { border-color: rgba(201,169,110,.3); }
+.praxis-card-img { height: 200px; overflow: hidden; }
+.praxis-card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 500ms var(--ease-out); }
+.praxis-card:hover .praxis-card-img img { transform: scale(1.06); }
+.praxis-card-body { padding: 24px; }
+.praxis-card-cat {
+  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 8px;
+}
+.praxis-card-title { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: .5px; margin-bottom: 8px; }
+.praxis-card-sub { font-size: 13px; color: var(--muted); font-weight: 300; line-height: 1.5; }
+.praxis-card-action {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--accent); margin-top: 20px; cursor: none;
+  transition: gap 200ms var(--ease-out);
+}
+.praxis-card:hover .praxis-card-action { gap: 14px; }
+
+/* === CTA FULL === */
+.cta-section {
+  min-height: 70vh; display: flex; align-items: center; justify-content: center;
+  text-align: center; position: relative; overflow: hidden;
+}
+.cta-bg {
+  position: absolute; inset: 0;
+  background-image: url('https://images.unsplash.com/photo-1611016186353-9af58c69a533?w=1800&q=80');
+  background-size: cover; background-position: center;
+  transform: scale(1.02);
+}
+.cta-bg::after {
+  content: ''; position: absolute; inset: 0;
+  background: rgba(6,6,8,.75);
+}
+.cta-content { position: relative; z-index: 1; max-width: 700px; }
+.cta-content .section-title { margin-bottom: 24px; }
+.cta-content p { font-size: 18px; font-weight: 300; color: var(--muted); margin-bottom: 48px; }
+
+/* === FOOTER === */
+footer {
+  background: var(--surface); border-top: 1px solid var(--border);
+  padding: 60px 48px 80px;
+  display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 48px;
+}
+.footer-brand .nav-logo { font-size: 28px; margin-bottom: 16px; display: block; }
+.footer-brand p { font-size: 14px; color: var(--muted); font-weight: 300; line-height: 1.7; max-width: 280px; }
+.footer-col h4 { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 20px; }
+.footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.footer-col li { font-size: 14px; color: var(--muted); font-weight: 300; cursor: none; transition: color 200ms; }
+.footer-col li:hover { color: var(--white); }
+
+/* === SCROLL INDICATOR === */
+.scroll-indicator {
+  position: absolute; right: 48px; bottom: 100px; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  animation: fadeUp 800ms var(--ease-out) 1200ms both;
+}
+.scroll-line {
+  width: 1px; height: 60px; background: linear-gradient(to bottom, transparent, var(--accent));
+  animation: scrollPulse 2s ease-in-out infinite;
+}
+.scroll-text {
+  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+/* === ANIMATIONS === */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes heroZoom {
+  from { transform: scale(1.08); }
+  to   { transform: scale(1); }
+}
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes scrollPulse {
+  0%, 100% { opacity: .3; transform: scaleY(1); }
+  50%       { opacity: 1;  transform: scaleY(1.2); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo"><span>P</span>RACTIO</div>
+  <ul class="nav-links">
+    <li><a href="#">Produkt</a></li>
+    <li><a href="#">Sicherheit</a></li>
+    <li><a href="#">Preise</a></li>
+    <li><a href="#">Kontakt</a></li>
+  </ul>
+  <button class="nav-cta">Demo buchen</button>
+</nav>
+
+<!-- TICKER -->
+<div class="ticker-wrap" aria-hidden="true">
+  <div class="ticker-track" id="ticker">
+    <div class="ticker-item">DSGVO-konform</div>
+    <div class="ticker-item">Ende-zu-Ende verschlüsselt</div>
+    <div class="ticker-item">Schweigepflicht beginnt bei der Software</div>
+    <div class="ticker-item">Psychotherapie · Privatpraxis · Gruppenpraxis</div>
+    <div class="ticker-item">Made in Germany</div>
+    <div class="ticker-item">DSGVO-konform</div>
+    <div class="ticker-item">Ende-zu-Ende verschlüsselt</div>
+    <div class="ticker-item">Schweigepflicht beginnt bei der Software</div>
+    <div class="ticker-item">Psychotherapie · Privatpraxis · Gruppenpraxis</div>
+    <div class="ticker-item">Made in Germany</div>
+    <div class="ticker-item">DSGVO-konform</div>
+    <div class="ticker-item">Ende-zu-Ende verschlüsselt</div>
+    <div class="ticker-item">Schweigepflicht beginnt bei der Software</div>
+    <div class="ticker-item">Psychotherapie · Privatpraxis · Gruppenpraxis</div>
+    <div class="ticker-item">Made in Germany</div>
+  </div>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="scroll-indicator" aria-hidden="true">
+    <span class="scroll-text">Scroll</span>
+    <div class="scroll-line"></div>
+  </div>
+  <div class="hero-content">
+    <div class="hero-tag">Practio · Praxisverwaltung der nächsten Generation</div>
+    <h1 class="hero-title">Schwei<em>g</em>-<br>pflicht.<br>Digital.</h1>
+    <p class="hero-sub">Die DSGVO-konforme Praxissoftware für Psychotherapeuten und Privatpraxen – designed für Vertrauen.</p>
+    <div class="hero-actions">
+      <button class="btn-primary">Jetzt kostenlos testen</button>
+      <button class="btn-ghost">
+        Demo ansehen
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats-bar" role="region" aria-label="Kennzahlen">
+  <div class="stat-item">
+    <div class="stat-num" data-target="36">0</div>
+    <div class="stat-label">Praxen in der Pipeline</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num" data-target="100">0</div>
+    <div class="stat-label">% DSGVO-konform</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num" data-target="99">0</div>
+    <div class="stat-label">€ / Monat pro Praxis</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num" data-target="0">0</div>
+    <div class="stat-label">Datenpannen seit Launch</div>
+  </div>
+</div>
+
+<!-- BENTO GRID -->
+<section>
+  <div class="section-tag">Precision · Craft · Trust</div>
+  <h2 class="section-title">Designed für<br><em>Perfektion</em></h2>
+  <div class="bento" role="list">
+    <div class="bento-cell b1" role="listitem">
+      <img src="https://images.unsplash.com/photo-1567899378494-47b22a2ae96a?w=1200&q=80" alt="Luxusyacht auf dem Meer" loading="lazy"/>
+      <span class="bento-title">Klares Wasser</span>
+      <span class="bento-label">Transparenz</span>
+    </div>
+    <div class="bento-cell b2" role="listitem">
+      <img src="https://images.unsplash.com/photo-1614200187524-dc4b892acf16?w=800&q=80" alt="Formel 1 Rennwagen" loading="lazy"/>
+      <span class="bento-title">Volle Kontrolle</span>
+      <span class="bento-label">Performance</span>
+    </div>
+    <div class="bento-cell b3" role="listitem">
+      <img src="https://images.unsplash.com/photo-1548169874-53e85f753f1e?w=800&q=80" alt="Luxusuhr Nahaufnahme" loading="lazy"/>
+      <span class="bento-title">Präzision</span>
+      <span class="bento-label">Qualität</span>
+    </div>
+    <div class="bento-cell b4" role="listitem">
+      <img src="https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&q=80" alt="Sportwagen" loading="lazy"/>
+      <span class="bento-title">Geschwindigkeit</span>
+      <span class="bento-label">Effizienz</span>
+    </div>
+    <div class="bento-cell b5" role="listitem">
+      <img src="https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=1200&q=80" alt="Luxusyacht Deck" loading="lazy"/>
+      <span class="bento-title">Großes Bild</span>
+      <span class="bento-label">Vision</span>
+    </div>
+    <div class="bento-cell b6" role="listitem">
+      <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80" alt="Premium Uhr" loading="lazy"/>
+      <span class="bento-title">Zeitlos</span>
+      <span class="bento-label">Verlässlichkeit</span>
+    </div>
+  </div>
+</section>
+
+<!-- MARQUEE IMAGES -->
+<div class="marquee-section" aria-hidden="true">
+  <div class="marquee-track" id="marquee">
+    <div class="marquee-img">
+      <img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=75" alt=""/>
+      <span class="marquee-img-cap">Yacht · Monte Carlo</span>
+    </div>
+    <div class="marquee-img">
+      <img src="https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?w=600&q=75" alt=""/>
+      <span class="marquee-img-cap">F1 · Monaco GP</span>
+    </div>
+    <div class="marquee-img">
+      <img src="https://images.unsplash.com/photo-1547996160-81dfa63595aa?w=600&q=75" alt=""/>
+      <span class="marquee-img-cap">Uhr · Genf</span>
+    </div>
+    <div class="marquee-img">
+      <img src="https://images.unsplash.com/photo-1563720223185-11003d516935?w=600&q=75" alt=""/>
+      <span class="marquee-img-cap">Yacht · Mittelmeer</span>
+    </div>
+    <div class="marquee-img">
+      <img src="https://images.unsplash.com/photo-1612825173281-9a193378527e?w=600&q=75" alt=""/>
+      <span class="marquee-img-cap">F1 · Rennstrecke</span>
+    </div>
+    <div class="marquee-img">
+      <img src="https://images.unsplash.com/photo-1508057198894-247b23fe5ade?w=600&q=75" alt=""/>
+      <span class="marquee-img-cap">Zeitmessung · Präzision</span>
+    </div>
+    <!-- duplicate for seamless loop -->
+    <div class="marquee-img">
+      <img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=75" alt=""/>
+      <span class="marquee-img-cap">Yacht · Monte Carlo</span>
+    </div>
+    <div class="marquee-img">
+      <img src="https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?w=600&q=75" alt=""/>
+      <span class="marquee-img-cap">F1 · Monaco GP</span>
+    </div>
+    <div class="marquee-img">
+      <img src="https://images.unsplash.com/photo-1547996160-81dfa63595aa?w=600&q=75" alt=""/>
+      <span class="marquee-img-cap">Uhr · Genf</span>
+    </div>
+    <div class="marquee-img">
+      <img src="https://images.unsplash.com/photo-1563720223185-11003d516935?w=600&q=75" alt=""/>
+      <span class="marquee-img-cap">Yacht · Mittelmeer</span>
+    </div>
+    <div class="marquee-img">
+      <img src="https://images.unsplash.com/photo-1612825173281-9a193378527e?w=600&q=75" alt=""/>
+      <span class="marquee-img-cap">F1 · Rennstrecke</span>
+    </div>
+    <div class="marquee-img">
+      <img src="https://images.unsplash.com/photo-1508057198894-247b23fe5ade?w=600&q=75" alt=""/>
+      <span class="marquee-img-cap">Zeitmessung · Präzision</span>
+    </div>
+  </div>
+</div>
+
+<!-- SPLIT SECTION -->
+<section>
+  <div class="split-section">
+    <div class="split-img" id="splitImg">
+      <img src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=900&q=80" alt="Modernes Praxisbüro mit digitalen Geräten" loading="lazy"/>
+    </div>
+    <div class="split-content" id="splitContent">
+      <div class="section-tag">Warum Practio</div>
+      <h2 class="section-title">Software,<br>die <em>schützt</em></h2>
+      <p>Ihre Patienten vertrauen Ihnen ihre intimsten Gedanken an. Practio stellt sicher, dass dieses Vertrauen auch digital gewahrt bleibt – mit Verschlüsselung auf Bankenniveau.</p>
+      <ul class="feature-list">
+        <li class="feature-item">
+          <div class="feature-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div>
+            <strong style="color:var(--white);display:block;margin-bottom:3px">Ende-zu-Ende Verschlüsselung</strong>
+            Patientendaten verlassen Ihre Praxis nie unverschlüsselt
+          </div>
+        </li>
+        <li class="feature-item">
+          <div class="feature-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          </div>
+          <div>
+            <strong style="color:var(--white);display:block;margin-bottom:3px">DSGVO nativ</strong>
+            Keine Nachgedanken – Compliance ist eingebaut, nicht angeflickt
+          </div>
+        </li>
+        <li class="feature-item">
+          <div class="feature-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </div>
+          <div>
+            <strong style="color:var(--white);display:block;margin-bottom:3px">KI-Unterstützung</strong>
+            Whisper-Transkription und GPT-4o für Befunddokumentation
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- HORIZONTAL CARDS -->
+<div class="cards-section">
+  <div class="cards-header">
+    <div class="section-tag">Aus der Praxis</div>
+    <h2 class="section-title">Was Practio<br><em>leistet</em></h2>
+  </div>
+  <div class="cards-track-wrap" role="list">
+    <div class="cards-track" id="cardsTrack">
+      <div class="praxis-card" role="listitem">
+        <div class="praxis-card-img">
+          <img src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=600&q=75" alt="Ärztliches Gespräch" loading="lazy"/>
+        </div>
+        <div class="praxis-card-body">
+          <div class="praxis-card-cat">Patientenportal</div>
+          <div class="praxis-card-title">Digitale Fragebögen</div>
+          <div class="praxis-card-sub">PSSI, BDI und eigene Tests direkt im Portal – automatisch im Profil verknüpft.</div>
+          <div class="praxis-card-action">Mehr erfahren <span>→</span></div>
+        </div>
+      </div>
+      <div class="praxis-card" role="listitem">
+        <div class="praxis-card-img">
+          <img src="https://images.unsplash.com/photo-1559757175-0eb30cd8c063?w=600&q=75" alt="Digitales Gerät in Praxis" loading="lazy"/>
+        </div>
+        <div class="praxis-card-body">
+          <div class="praxis-card-cat">KI-Assistent</div>
+          <div class="praxis-card-title">Sprache zu Befund</div>
+          <div class="praxis-card-sub">Diktat mit Whisper, Strukturierung via GPT-4o – Dokumentation in Sekunden.</div>
+          <div class="praxis-card-action">Mehr erfahren <span>→</span></div>
+        </div>
+      </div>
+      <div class="praxis-card" role="listitem">
+        <div class="praxis-card-img">
+          <img src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&q=75" alt="Büro Schreibtisch" loading="lazy"/>
+        </div>
+        <div class="praxis-card-body">
+          <div class="praxis-card-cat">Abrechnung</div>
+          <div class="praxis-card-title">GOÄ & Privatrechnung</div>
+          <div class="praxis-card-sub">Leistungspositionen nach GOÄ mit einem Klick abrechnen, direkt aus dem Befund.</div>
+          <div class="praxis-card-action">Mehr erfahren <span>→</span></div>
+        </div>
+      </div>
+      <div class="praxis-card" role="listitem">
+        <div class="praxis-card-img">
+          <img src="https://images.unsplash.com/photo-1516321497487-e288fb19713f?w=600&q=75" alt="Smartphone App" loading="lazy"/>
+        </div>
+        <div class="praxis-card-body">
+          <div class="praxis-card-cat">Kommunikation</div>
+          <div class="praxis-card-title">Sicheres Messaging</div>
+          <div class="praxis-card-sub">Ende-zu-Ende verschlüsselter Austausch zwischen Praxis und Patient.</div>
+          <div class="praxis-card-action">Mehr erfahren <span>→</span></div>
+        </div>
+      </div>
+      <div class="praxis-card" role="listitem">
+        <div class="praxis-card-img">
+          <img src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=600&q=75" alt="Server Infrastruktur" loading="lazy"/>
+        </div>
+        <div class="praxis-card-body">
+          <div class="praxis-card-cat">Infrastruktur</div>
+          <div class="praxis-card-title">Hosting in Deutschland</div>
+          <div class="praxis-card-sub">Alle Daten auf deutschen Servern. Kein Cloud-Act, kein Datentransfer in die USA.</div>
+          <div class="praxis-card-action">Mehr erfahren <span>→</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CTA FULL -->
+<section class="cta-section">
+  <div class="cta-bg"></div>
+  <div class="cta-content" id="ctaContent">
+    <div class="section-tag" style="justify-content:center">Jetzt starten</div>
+    <h2 class="section-title">Bereit für<br><em>mehr</em> Zeit<br>mit Patienten?</h2>
+    <p>14 Tage kostenlos testen. Keine Kreditkarte. Kein Risiko.</p>
+    <button class="btn-primary" style="font-size:14px;padding:18px 56px">Kostenlos starten</button>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer role="contentinfo">
+  <div class="footer-brand">
+    <span class="nav-logo"><span style="color:var(--accent)">P</span>RACTIO</span>
+    <p>Praxisverwaltung für Psychotherapeuten und Privatpraxen. DSGVO-konform. Made in Germany.</p>
+  </div>
+  <div class="footer-col">
+    <h4>Produkt</h4>
+    <ul>
+      <li>Features</li>
+      <li>Sicherheit</li>
+      <li>Preise</li>
+      <li>Changelog</li>
+    </ul>
+  </div>
+  <div class="footer-col">
+    <h4>Rechtliches</h4>
+    <ul>
+      <li>Datenschutz</li>
+      <li>AGB</li>
+      <li>Impressum</li>
+      <li>DSGVO</li>
+    </ul>
+  </div>
+  <div class="footer-col">
+    <h4>Kontakt</h4>
+    <ul>
+      <li>Demo buchen</li>
+      <li>Support</li>
+      <li>Hamburg, DE</li>
+    </ul>
+  </div>
+</footer>
+
+<script>
+/* === CURSOR === */
+const cursor = document.getElementById('cursor');
+const ring   = document.getElementById('cursor-ring');
+let mx = 0, my = 0, rx = 0, ry = 0;
+
+document.addEventListener('mousemove', e => {
+  mx = e.clientX; my = e.clientY;
+  cursor.style.left = mx + 'px';
+  cursor.style.top  = my + 'px';
+});
+
+function animateRing() {
+  rx += (mx - rx) * 0.12;
+  ry += (my - ry) * 0.12;
+  ring.style.left = rx + 'px';
+  ring.style.top  = ry + 'px';
+  requestAnimationFrame(animateRing);
+}
+animateRing();
+
+/* === COUNTER ANIMATION === */
+function animateCounter(el, target, duration = 1400) {
+  const start = performance.now();
+  const update = now => {
+    const progress = Math.min((now - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 4); /* ease-out-quart */
+    el.textContent = Math.round(ease * target);
+    if (progress < 1) requestAnimationFrame(update);
+    else el.textContent = target;
+  };
+  requestAnimationFrame(update);
+}
+
+/* === INTERSECTION OBSERVER === */
+const observerOpts = { threshold: 0.15 };
+
+const io = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (!entry.isIntersecting) return;
+    entry.target.classList.add('visible');
+
+    /* Counter */
+    const numEl = entry.target.querySelector('[data-target]');
+    if (numEl) {
+      const target = parseInt(numEl.dataset.target, 10);
+      animateCounter(numEl, target);
+    }
+    io.unobserve(entry.target);
+  });
+}, observerOpts);
+
+document.querySelectorAll(
+  '.bento-cell, .stat-item, .praxis-card, .split-img, .split-content'
+).forEach(el => io.observe(el));
+
+/* Cards stagger */
+document.querySelectorAll('.praxis-card').forEach((card, i) => {
+  card.style.transitionDelay = `${i * 80}ms`;
+});
+
+/* CTA fade in */
+const ctaIO = new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting) {
+    entries[0].target.style.opacity = 1;
+    entries[0].target.style.transform = 'translateY(0)';
+  }
+}, { threshold: 0.2 });
+const ctaEl = document.getElementById('ctaContent');
+if (ctaEl) {
+  ctaEl.style.cssText += 'opacity:0;transform:translateY(30px);transition:opacity 800ms cubic-bezier(0.23,1,0.32,1),transform 800ms cubic-bezier(0.23,1,0.32,1)';
+  ctaIO.observe(ctaEl);
+}
+
+/* === SCROLL-BASED HERO PARALLAX === */
+window.addEventListener('scroll', () => {
+  const y = window.scrollY;
+  const heroBg = document.querySelector('.hero-bg');
+  if (heroBg && y < window.innerHeight) {
+    heroBg.style.transform = `scale(1) translateY(${y * 0.25}px)`;
+  }
+}, { passive: true });
+</script>
+</body>
+</html>
