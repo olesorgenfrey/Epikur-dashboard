@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Practio Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0d12;
+      --surface: #111520;
+      --surface2: #161c2a;
+      --border: #1e2740;
+      --border2: #252f45;
+      --text: #e8edf5;
+      --text2: #7a8aaa;
+      --text3: #4a5570;
+      --accent: #3b7ef8;
+      --accent2: #5b9dff;
+      --green: #22c55e;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --purple: #a855f7;
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Grid noise overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 20% -10%, rgba(59,126,248,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 110%, rgba(91,157,255,0.05) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    #root { position: relative; z-index: 1; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+    /* Layout */
+    .app { display: flex; min-height: 100vh; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px 0;
+      display: flex;
+      flex-direction: column;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    .logo {
+      padding: 0 20px 28px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+
+    .logo-mark {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #3b7ef8, #5b9dff);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 800;
+      color: white;
+      margin-bottom: 10px;
+      box-shadow: 0 4px 16px rgba(59,126,248,0.35);
+    }
+
+    .logo-name { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+    .logo-sub { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; margin-top: 2px; }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 20px;
+      cursor: pointer;
+      border-radius: 0;
+      transition: background 150ms var(--ease-out), color 150ms;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text2);
+      border-left: 2px solid transparent;
+      margin: 1px 0;
+    }
+
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { color: var(--accent2); border-left-color: var(--accent); background: rgba(59,126,248,0.07); }
+    .nav-icon { font-size: 15px; width: 18px; text-align: center; }
+
+    .nav-badge {
+      margin-left: auto;
+      background: var(--accent);
+      color: white;
+      font-size: 10px;
+      font-family: 'DM Mono', monospace;
+      padding: 1px 6px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+
+    /* Main */
+    .main { flex: 1; overflow-y: auto; padding: 32px 36px; }
+
+    .page-header {
+      margin-bottom: 28px;
+      animation: fadeUp 400ms var(--ease-out) both;
+    }
+
+    .page-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+    .page-sub { font-size: 13px; color: var(--text2); margin-top: 4px; font-family: 'DM Mono', monospace; }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--text3);
+      margin-bottom: 16px;
+    }
+
+    /* Stat cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      animation: fadeUp 400ms var(--ease-out) both;
+    }
+
+    .stat-card:nth-child(1) { animation-delay: 60ms; }
+    .stat-card:nth-child(2) { animation-delay: 100ms; }
+    .stat-card:nth-child(3) { animation-delay: 140ms; }
+    .stat-card:nth-child(4) { animation-delay: 180ms; }
+
+    .stat-label { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; margin-bottom: 8px; }
+    .stat-value { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
+    .stat-sub { font-size: 11px; color: var(--text2); margin-top: 4px; font-family: 'DM Mono', monospace; }
+    .stat-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+
+    /* Grid layouts */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+    .grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 24px; }
+
+    /* Lead table */
+    .lead-table { width: 100%; border-collapse: collapse; }
+    .lead-table th {
+      text-align: left;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text3);
+      padding: 0 10px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .lead-table td {
+      padding: 10px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text2);
+    }
+    .lead-table tr:last-child td { border-bottom: none; }
+    .lead-table tr { transition: background 120ms; cursor: pointer; }
+    .lead-table tr:hover td { background: var(--surface2); }
+    .lead-name { font-weight: 600; color: var(--text) !important; }
+
+    /* Status badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-family: 'DM Mono', monospace;
+    }
+    .badge-green { background: rgba(34,197,94,0.12); color: var(--green); }
+    .badge-yellow { background: rgba(245,158,11,0.12); color: var(--yellow); }
+    .badge-red { background: rgba(239,68,68,0.12); color: var(--red); }
+    .badge-blue { background: rgba(59,126,248,0.12); color: var(--accent2); }
+    .badge-gray { background: rgba(122,138,170,0.12); color: var(--text2); }
+
+    /* Tasks */
+    .task-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      animation: fadeUp 300ms var(--ease-out) both;
+    }
+    .task-item:last-child { border-bottom: none; }
+
+    .task-check {
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      border: 1.5px solid var(--border2);
+      flex-shrink: 0;
+      margin-top: 1px;
+      cursor: pointer;
+      transition: all 150ms var(--ease-out);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+    }
+    .task-check:hover { border-color: var(--accent); background: rgba(59,126,248,0.1); }
+    .task-check.done { background: var(--green); border-color: var(--green); color: white; }
+
+    .task-text { font-size: 13px; flex: 1; line-height: 1.4; }
+    .task-text.done { text-decoration: line-through; color: var(--text3); }
+    .task-meta { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; margin-top: 2px; }
+
+    .task-assignee {
+      font-size: 11px;
+      font-family: 'DM Mono', monospace;
+      padding: 2px 7px;
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+    .assignee-ole { background: rgba(59,126,248,0.12); color: var(--accent2); }
+    .assignee-kumpel { background: rgba(168,85,247,0.12); color: var(--purple); }
+
+    /* Milestones */
+    .milestone {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .milestone:last-child { border-bottom: none; }
+
+    .milestone-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .milestone-label { font-size: 13px; font-weight: 600; flex: 1; }
+    .milestone-date { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; }
+
+    /* Progress bar */
+    .progress-wrap { background: var(--surface2); border-radius: 4px; height: 5px; margin-top: 6px; overflow: hidden; }
+    .progress-bar { height: 100%; border-radius: 4px; transition: width 600ms var(--ease-out); }
+
+    /* Revenue */
+    .revenue-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .revenue-item:last-child { border-bottom: none; }
+    .revenue-label { color: var(--text2); }
+    .revenue-value { font-weight: 700; font-family: 'DM Mono', monospace; }
+
+    /* Funnel */
+    .funnel-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .funnel-label { font-size: 12px; color: var(--text2); width: 90px; flex-shrink: 0; font-family: 'DM Mono', monospace; }
+    .funnel-bar-wrap { flex: 1; background: var(--surface2); border-radius: 3px; height: 22px; overflow: hidden; }
+    .funnel-bar { height: 100%; border-radius: 3px; display: flex; align-items: center; padding-left: 8px; font-size: 11px; font-weight: 700; color: white; transition: width 600ms var(--ease-out); }
+    .funnel-count { font-size: 12px; color: var(--text2); font-family: 'DM Mono', monospace; width: 24px; text-align: right; }
+
+    /* Add form */
+    .add-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    input, select {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      padding: 7px 11px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-family: 'Syne', sans-serif;
+      outline: none;
+      transition: border-color 150ms;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    input::placeholder { color: var(--text3); }
+
+    .btn {
+      padding: 7px 14px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      font-family: 'Syne', sans-serif;
+      transition: all 150ms var(--ease-out);
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent2); }
+    .btn-ghost { background: var(--surface2); color: var(--text2); border: 1px solid var(--border2); }
+    .btn-ghost:hover { background: var(--border); color: var(--text); }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 4px; margin-bottom: 18px; }
+    .tab {
+      padding: 6px 14px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text2);
+      transition: all 150ms;
+      border: 1px solid transparent;
+    }
+    .tab:hover { color: var(--text); background: var(--surface2); }
+    .tab.active { color: var(--accent2); background: rgba(59,126,248,0.1); border-color: rgba(59,126,248,0.2); }
+
+    /* Animations */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .page { animation: fadeUp 350ms var(--ease-out) both; }
+
+    /* Slogan */
+    .slogan {
+      font-size: 10px;
+      font-family: 'DM Mono', monospace;
+      color: var(--text3);
+      padding: 0 20px;
+      margin-top: auto;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+const initialLeads = [
+  { id: 1, name: "Praxis Mehner", city: "Hamburg", type: "Psychotherapie", status: "angerufen", assignee: "Kumpel", notes: "Interesse gezeigt, Mail folgt" },
+  { id: 2, name: "Dr. Braun", city: "Lüneburg", type: "Privatpraxis", status: "einwilligung", assignee: "Kumpel", notes: "Mail raus am 05.06" },
+  { id: 3, name: "Praxis Müller", city: "Stade", type: "Psychotherapie", status: "mail_gesendet", assignee: "Kumpel", notes: "Follow-up in 1 Woche" },
+  { id: 4, name: "Zentrum Wedel", city: "Wedel", type: "Gruppenpraxis", status: "offen", assignee: "Kumpel", notes: "" },
+  { id: 5, name: "Dr. Fischer", city: "Buxtehude", type: "Psychotherapie", status: "abgelehnt", assignee: "Kumpel", notes: "Hat Vertrag bis 2026" },
+  { id: 6, name: "Praxis Vogel", city: "Harburg", type: "Privatpraxis", status: "angerufen", assignee: "Kumpel", notes: "" },
+];
+
+const initialTasks = [
+  { id: 1, text: "Onboarding-Flow fertigstellen", meta: "Practio · Feature", assignee: "Ole", done: false },
+  { id: 2, text: "§7 UWG Telefonleitfaden erstellen", meta: "Akquise · Doku", assignee: "Kumpel", done: true },
+  { id: 3, text: "Datenschutzerklärung aktualisieren (DSGVO)", meta: "Legal · Prio hoch", assignee: "Ole", done: false },
+  { id: 4, text: "Demo-Video aufnehmen", meta: "Marketing", assignee: "Ole", done: false },
+  { id: 5, text: "Lead-Liste auf 50 erweitern", meta: "Akquise", assignee: "Kumpel", done: false },
+  { id: 6, text: "E-Mail-Vorlage finalisieren", meta: "Akquise", assignee: "Kumpel", done: true },
+  { id: 7, text: "Stripe Integration testen", meta: "Practio · Tech", assignee: "Ole", done: false },
+  { id: 8, text: "Servermonitoring einrichten", meta: "Infra", assignee: "Ole", done: false },
+];
+
+const milestones = [
+  { label: "MVP Live", date: "✓ Mai 2025", done: true, color: "#22c55e", progress: 100 },
+  { label: "Marketing-Website", date: "✓ Jun 2025", done: true, color: "#22c55e", progress: 100 },
+  { label: "Erste 5 Leads kontaktiert", date: "laufend", done: false, color: "#f59e0b", progress: 60 },
+  { label: "Erster zahlender Kunde", date: "Ziel: Jul 2025", done: false, color: "#3b7ef8", progress: 15 },
+  { label: "10 aktive Praxen", date: "Ziel: Okt 2025", done: false, color: "#a855f7", progress: 0 },
+  { label: "Breakeven", date: "Ziel: Q1 2026", done: false, color: "#7a8aaa", progress: 0 },
+];
+
+const statusConfig = {
+  offen: { label: "Offen", cls: "badge-gray" },
+  angerufen: { label: "Angerufen", cls: "badge-yellow" },
+  einwilligung: { label: "Einwilligung", cls: "badge-blue" },
+  mail_gesendet: { label: "Mail gesendet", cls: "badge-blue" },
+  follow_up: { label: "Follow-up", cls: "badge-yellow" },
+  abgeschlossen: { label: "Abgeschlossen", cls: "badge-green" },
+  abgelehnt: { label: "Abgelehnt", cls: "badge-red" },
+};
+
+const navItems = [
+  { id: "overview", icon: "◈", label: "Übersicht" },
+  { id: "leads", icon: "◉", label: "Leads" },
+  { id: "tasks", icon: "◫", label: "Tasks" },
+  { id: "milestones", icon: "◬", label: "Meilensteine" },
+  { id: "finance", icon: "◐", label: "Finanzen" },
+];
+
+function App() {
+  const [page, setPage] = useState("overview");
+  const [leads, setLeads] = useState(initialLeads);
+  const [tasks, setTasks] = useState(initialTasks);
+  const [newLead, setNewLead] = useState({ name: "", city: "", type: "Psychotherapie" });
+  const [newTask, setNewTask] = useState({ text: "", assignee: "Ole", meta: "" });
+  const [leadFilter, setLeadFilter] = useState("alle");
+
+  const toggleTask = (id) => setTasks(ts => ts.map(t => t.id === id ? { ...t, done: !t.done } : t));
+
+  const addLead = () => {
+    if (!newLead.name) return;
+    setLeads(ls => [...ls, { ...newLead, id: Date.now(), status: "offen", assignee: "Kumpel", notes: "" }]);
+    setNewLead({ name: "", city: "", type: "Psychotherapie" });
+  };
+
+  const addTask = () => {
+    if (!newTask.text) return;
+    setTasks(ts => [...ts, { ...newTask, id: Date.now(), done: false }]);
+    setNewTask({ text: "", assignee: "Ole", meta: "" });
+  };
+
+  const updateLeadStatus = (id, status) => setLeads(ls => ls.map(l => l.id === id ? { ...l, status } : l));
+
+  const filteredLeads = leadFilter === "alle" ? leads : leads.filter(l => l.status === leadFilter);
+
+  const stats = {
+    totalLeads: leads.length,
+    contacted: leads.filter(l => l.status !== "offen").length,
+    consented: leads.filter(l => ["einwilligung", "mail_gesendet", "abgeschlossen"].includes(l.status)).length,
+    won: leads.filter(l => l.status === "abgeschlossen").length,
+    openTasks: tasks.filter(t => !t.done).length,
+    doneTasks: tasks.filter(t => t.done).length,
+  };
+
+  const funnelData = [
+    { label: "Leads", count: leads.length, color: "#3b7ef8" },
+    { label: "Kontakt", count: leads.filter(l => l.status !== "offen").length, color: "#5b9dff" },
+    { label: "Einwillg.", count: stats.consented, color: "#f59e0b" },
+    { label: "Gewonnen", count: stats.won, color: "#22c55e" },
+  ];
+
+  return (
+    <div className="app">
+      <aside className="sidebar">
+        <div className="logo">
+          <div className="logo-mark">P</div>
+          <div className="logo-name">Practio</div>
+          <div className="logo-sub">Projekt-Dashboard</div>
+        </div>
+        {navItems.map(item => (
+          <div
+            key={item.id}
+            className={`nav-item ${page === item.id ? "active" : ""}`}
+            onClick={() => setPage(item.id)}
+          >
+            <span className="nav-icon">{item.icon}</span>
+            {item.label}
+            {item.id === "tasks" && stats.openTasks > 0 && (
+              <span className="nav-badge">{stats.openTasks}</span>
+            )}
+            {item.id === "leads" && (
+              <span className="nav-badge">{leads.length}</span>
+            )}
+          </div>
+        ))}
+        <div className="slogan">
+          „Schweigepflicht beginnt<br />bei der Software"
+        </div>
+      </aside>
+
+      <main className="main">
+        {page === "overview" && (
+          <div className="page">
+            <div className="page-header">
+              <div className="page-title">Übersicht</div>
+              <div className="page-sub">Stand heute · Practio Go-to-Market</div>
+            </div>
+
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="stat-label">LEADS GESAMT</div>
+                <div className="stat-value" style={{color: "var(--accent2)"}}>{stats.totalLeads}</div>
+                <div className="stat-sub">→ {stats.contacted} kontaktiert</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">EINWILLIGUNGEN</div>
+                <div className="stat-value" style={{color: "var(--yellow)"}}>{stats.consented}</div>
+                <div className="stat-sub">→ {stats.won} gewonnen</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">OFFENE TASKS</div>
+                <div className="stat-value" style={{color: "var(--purple)"}}>{stats.openTasks}</div>
+                <div className="stat-sub">→ {stats.doneTasks} erledigt</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">MRR ZIEL</div>
+                <div className="stat-value" style={{color: "var(--green)"}}>€0</div>
+                <div className="stat-sub">→ Ziel: €500 / Monat</div>
+              </div>
+            </div>
+
+            <div className="grid-2">
+              <div className="card" style={{animationDelay: "200ms", animation: "fadeUp 400ms var(--ease-out) both"}}>
+                <div className="card-title">Akquise-Funnel</div>
+                {funnelData.map((row, i) => (
+                  <div className="funnel-row" key={i}>
+                    <div className="funnel-label">{row.label}</div>
+                    <div className="funnel-bar-wrap">
+                      <div
+                        className="funnel-bar"
+                        style={{ width: `${(row.count / leads.length) * 100}%`, background: row.color }}
+                      >
+                        {row.count > 0 && row.count}
+                      </div>
+                    </div>
+                    <div className="funnel-count">{row.count}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="card" style={{animationDelay: "250ms", animation: "fadeUp 400ms var(--ease-out) both"}}>
+                <div className="card-title">Nächste Meilensteine</div>
+                {milestones.filter(m => !m.done).slice(0, 4).map((m, i) => (
+                  <div className="milestone" key={i}>
+                    <div className="milestone-dot" style={{ background: m.color }} />
+                    <div style={{flex: 1}}>
+                      <div className="milestone-label">{m.label}</div>
+                      <div className="progress-wrap">
+                        <div className="progress-bar" style={{ width: `${m.progress}%`, background: m.color }} />
+                      </div>
+                    </div>
+                    <div className="milestone-date">{m.date}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="card" style={{animationDelay: "300ms", animation: "fadeUp 400ms var(--ease-out) both"}}>
+              <div className="card-title">Offene Tasks</div>
+              {tasks.filter(t => !t.done).slice(0, 5).map((t, i) => (
+                <div className="task-item" key={t.id} style={{animationDelay: `${i * 40}ms`}}>
+                  <div className={`task-check ${t.done ? "done" : ""}`} onClick={() => toggleTask(t.id)}>
+                    {t.done && "✓"}
+                  </div>
+                  <div style={{flex: 1}}>
+                    <div className={`task-text ${t.done ? "done" : ""}`}>{t.text}</div>
+                    <div className="task-meta">{t.meta}</div>
+                  </div>
+                  <span className={`task-assignee ${t.assignee === "Ole" ? "assignee-ole" : "assignee-kumpel"}`}>{t.assignee}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {page === "leads" && (
+          <div className="page">
+            <div className="page-header">
+              <div className="page-title">Lead-Liste</div>
+              <div className="page-sub">{leads.length} Praxen · Norddeutschland</div>
+            </div>
+
+            <div className="tabs">
+              {["alle", "offen", "angerufen", "einwilligung", "mail_gesendet", "abgeschlossen", "abgelehnt"].map(f => (
+                <div
+                  key={f}
+                  className={`tab ${leadFilter === f ? "active" : ""}`}
+                  onClick={() => setLeadFilter(f)}
+                >
+                  {f === "alle" ? "Alle" : statusConfig[f]?.label || f}
+                  {f !== "alle" && (
+                    <span style={{marginLeft: 5, opacity: 0.6}}>{leads.filter(l => l.status === f).length}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="card">
+              <table className="lead-table">
+                <thead>
+                  <tr>
+                    <th>Praxis</th>
+                    <th>Ort</th>
+                    <th>Typ</th>
+                    <th>Status</th>
+                    <th>Notiz</th>
+                    <th>Aktion</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLeads.map(lead => (
+                    <tr key={lead.id}>
+                      <td className="lead-name">{lead.name}</td>
+                      <td>{lead.city}</td>
+                      <td style={{fontSize: 11, fontFamily: "'DM Mono', monospace"}}>{lead.type}</td>
+                      <td>
+                        <span className={`badge ${statusConfig[lead.status]?.cls || "badge-gray"}`}>
+                          {statusConfig[lead.status]?.label || lead.status}
+                        </span>
+                      </td>
+                      <td style={{maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12}}>
+                        {lead.notes || "—"}
+                      </td>
+                      <td>
+                        <select
+                          value={lead.status}
+                          onChange={e => updateLeadStatus(lead.id, e.target.value)}
+                          style={{fontSize: 11, padding: "3px 6px"}}
+                        >
+                          {Object.entries(statusConfig).map(([k, v]) => (
+                            <option key={k} value={k}>{v.label}</option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="add-row">
+                <input
+                  placeholder="Praxisname"
+                  value={newLead.name}
+                  onChange={e => setNewLead({...newLead, name: e.target.value})}
+                  style={{flex: 2}}
+                  onKeyDown={e => e.key === "Enter" && addLead()}
+                />
+                <input
+                  placeholder="Ort"
+                  value={newLead.city}
+                  onChange={e => setNewLead({...newLead, city: e.target.value})}
+                  style={{flex: 1}}
+                />
+                <select value={newLead.type} onChange={e => setNewLead({...newLead, type: e.target.value})}>
+                  <option>Psychotherapie</option>
+                  <option>Privatpraxis</option>
+                  <option>Gruppenpraxis</option>
+                </select>
+                <button className="btn btn-primary" onClick={addLead}>+ Lead</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {page === "tasks" && (
+          <div className="page">
+            <div className="page-header">
+              <div className="page-title">Tasks</div>
+              <div className="page-sub">{stats.openTasks} offen · {stats.doneTasks} erledigt</div>
+            </div>
+
+            <div className="grid-2">
+              <div className="card">
+                <div className="card-title">Ole</div>
+                {tasks.filter(t => t.assignee === "Ole").map((t, i) => (
+                  <div className="task-item" key={t.id} style={{animationDelay: `${i * 40}ms`}}>
+                    <div className={`task-check ${t.done ? "done" : ""}`} onClick={() => toggleTask(t.id)}>
+                      {t.done && "✓"}
+                    </div>
+                    <div>
+                      <div className={`task-text ${t.done ? "done" : ""}`}>{t.text}</div>
+                      <div className="task-meta">{t.meta}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="card">
+                <div className="card-title">Kumpel</div>
+                {tasks.filter(t => t.assignee === "Kumpel").map((t, i) => (
+                  <div className="task-item" key={t.id} style={{animationDelay: `${i * 40}ms`}}>
+                    <div className={`task-check ${t.done ? "done" : ""}`} onClick={() => toggleTask(t.id)}>
+                      {t.done && "✓"}
+                    </div>
+                    <div>
+                      <div className={`task-text ${t.done ? "done" : ""}`}>{t.text}</div>
+                      <div className="task-meta">{t.meta}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-title">Task hinzufügen</div>
+              <div className="add-row" style={{marginTop: 0, paddingTop: 0, borderTop: "none"}}>
+                <input
+                  placeholder="Aufgabe beschreiben..."
+                  value={newTask.text}
+                  onChange={e => setNewTask({...newTask, text: e.target.value})}
+                  style={{flex: 3}}
+                  onKeyDown={e => e.key === "Enter" && addTask()}
+                />
+                <input
+                  placeholder="Kategorie"
+                  value={newTask.meta}
+                  onChange={e => setNewTask({...newTask, meta: e.target.value})}
+                  style={{flex: 1}}
+                />
+                <select value={newTask.assignee} onChange={e => setNewTask({...newTask, assignee: e.target.value})}>
+                  <option value="Ole">Ole</option>
+                  <option value="Kumpel">Kumpel</option>
+                </select>
+                <button className="btn btn-primary" onClick={addTask}>+ Task</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {page === "milestones" && (
+          <div className="page">
+            <div className="page-header">
+              <div className="page-title">Meilensteine</div>
+              <div className="page-sub">Practio Roadmap 2025–2026</div>
+            </div>
+
+            <div className="card">
+              {milestones.map((m, i) => (
+                <div className="milestone" key={i} style={{padding: "16px 0"}}>
+                  <div style={{width: 12, height: 12, borderRadius: "50%", background: m.color, flexShrink: 0}} />
+                  <div style={{flex: 1}}>
+                    <div style={{display: "flex", alignItems: "center", gap: 10, marginBottom: 6}}>
+                      <div className="milestone-label">{m.label}</div>
+                      {m.done && <span className="badge badge-green">✓ Done</span>}
+                    </div>
+                    <div className="progress-wrap">
+                      <div className="progress-bar" style={{width: `${m.progress}%`, background: m.color}} />
+                    </div>
+                    <div style={{fontSize: 11, color: "var(--text3)", fontFamily: "'DM Mono', monospace", marginTop: 4}}>
+                      {m.progress}% · {m.date}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {page === "finance" && (
+          <div className="page">
+            <div className="page-header">
+              <div className="page-title">Finanzen</div>
+              <div className="page-sub">Umsatzziele & Planung</div>
+            </div>
+
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="stat-label">MRR AKTUELL</div>
+                <div className="stat-value" style={{color: "var(--text2)"}}>€0</div>
+                <div className="stat-sub">0 Kunden</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">MRR ZIEL (Q3)</div>
+                <div className="stat-value" style={{color: "var(--yellow)"}}>€500</div>
+                <div className="stat-sub">~5 Kunden à €99</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">BREAKEVEN</div>
+                <div className="stat-value" style={{color: "var(--accent2)"}}>€200</div>
+                <div className="stat-sub">Server + Tools / Mo.</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">PREIS / PRAXIS</div>
+                <div className="stat-value" style={{color: "var(--green)"}}>€99</div>
+                <div className="stat-sub">Monatlich, kündbar</div>
+              </div>
+            </div>
+
+            <div className="grid-2">
+              <div className="card">
+                <div className="card-title">Kosten (monatlich)</div>
+                {[
+                  {label: "Strato Server", value: "~€10"},
+                  {label: "OpenAI API", value: "~€20"},
+                  {label: "Domain & SSL", value: "~€2"},
+                  {label: "Tools & SaaS", value: "~€30"},
+                  {label: "Gesamt", value: "~€62"},
+                ].map((r, i) => (
+                  <div className="revenue-item" key={i} style={i === 4 ? {fontWeight: 700, color: "var(--text)"} : {}}>
+                    <div className="revenue-label">{r.label}</div>
+                    <div className="revenue-value">{r.value}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="card">
+                <div className="card-title">Szenarien</div>
+                {[
+                  {label: "1 Kunde", value: "€99 / Mo.", color: "var(--red)"},
+                  {label: "3 Kunden", value: "€297 / Mo.", color: "var(--yellow)"},
+                  {label: "5 Kunden (BE)", value: "€495 / Mo.", color: "var(--green)"},
+                  {label: "10 Kunden", value: "€990 / Mo.", color: "var(--accent2)"},
+                  {label: "20 Kunden", value: "€1.980 / Mo.", color: "var(--purple)"},
+                ].map((r, i) => (
+                  <div className="revenue-item" key={i}>
+                    <div style={{display: "flex", alignItems: "center", gap: 8}}>
+                      <div style={{width: 6, height: 6, borderRadius: "50%", background: r.color}} />
+                      <div className="revenue-label">{r.label}</div>
+                    </div>
+                    <div className="revenue-value" style={{color: r.color}}>{r.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.render(<App />, document.getElementById("root"));
+</script>
+</body>
+</html>
