@@ -129,6 +129,8 @@ body {
   transition: all 200ms var(--ease-out);
   min-height: 44px; border: 1px solid transparent;
   position: relative; overflow: hidden;
+  background: transparent; appearance: none; -webkit-appearance: none;
+  width: calc(100% - 24px); text-align: left; font-family: inherit;
 }
 .nav-item:hover { color: var(--text); background: rgba(255,255,255,.06); }
 .nav-item.active {
