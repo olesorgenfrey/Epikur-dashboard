@@ -11,11 +11,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <style>
 :root {
-  --glass-bg:      rgba(255, 255, 255, 0.04);
-  --glass-bg-2:    rgba(255, 255, 255, 0.03);
-  --glass-border:  rgba(255, 255, 255, 0.14);
-  --glass-border-strong: rgba(255, 255, 255, 0.22);
-  --glass-highlight: rgba(255, 255, 255, 0.05);
+  --glass-bg:      rgba(255, 255, 255, 0.02);
+  --glass-bg-2:    rgba(255, 255, 255, 0.01);
+  --glass-border:  rgba(255, 255, 255, 0.28);
+  --glass-border-strong: rgba(255, 255, 255, 0.40);
+  --glass-highlight: rgba(255, 255, 255, 0.06);
 
   --text:   #F4F6FB;
   --text-2: rgba(244, 246, 251, 0.62);
@@ -67,25 +67,22 @@ body {
 /* === GLASS PRIMITIVE === */
 .glass {
   background: var(--glass-bg);
-  backdrop-filter: blur(40px) saturate(160%);
-  -webkit-backdrop-filter: blur(40px) saturate(160%);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
   border: 1px solid var(--glass-border);
-  border-radius: 20px;
+  border-radius: 14px;
   position: relative;
   overflow: hidden;
 }
-/* Top highlight edge — the liquid glass shine */
 .glass::before {
   content: ''; position: absolute; inset: 0; border-radius: inherit;
-  padding: 1px; pointer-events: none;
-  background: linear-gradient(135deg, rgba(255,255,255,.4) 0%, transparent 35%, transparent 65%, rgba(255,255,255,.1) 100%);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor; mask-composite: exclude;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255,255,255,.18) 0%, transparent 30%);
 }
 .glass::after {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 40%;
-  background: linear-gradient(to bottom, var(--glass-highlight), transparent);
-  pointer-events: none; border-radius: 20px 20px 0 0;
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: rgba(255,255,255,.45);
+  pointer-events: none;
 }
 
 /* === LAYOUT === */
@@ -124,7 +121,7 @@ body {
 .nav-item {
   display: flex; align-items: center; gap: 13px;
   margin: 3px 12px; padding: 11px 14px;
-  border-radius: 12px; cursor: pointer;
+  border-radius: 8px; cursor: pointer;
   font-size: 14px; font-weight: 500; color: var(--text-2);
   transition: all 200ms var(--ease-out);
   min-height: 44px; border: 1px solid transparent;
@@ -184,6 +181,7 @@ body {
   padding: 22px;
   animation: fadeUp 600ms var(--ease-out) both;
   transition: transform 300ms var(--ease-out);
+  border-radius: 14px;
 }
 .stat-card:hover { transform: translateY(-3px); }
 .stat-card:nth-child(1){animation-delay:60ms}
