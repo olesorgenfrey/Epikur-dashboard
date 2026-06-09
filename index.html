@@ -20,6 +20,7 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',-apple-system,sans-serif;color:var(--t);background:#06070A;min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 .bg{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center;transition:opacity 800ms var(--ease),transform 1200ms var(--ease);transform:scale(1.04)}
+.bg.tasks{background-size:80%;background-position:center;background-repeat:no-repeat;background-color:#06070A}
 .bg.on{opacity:1;transform:scale(1)}.bg.off{opacity:0}
 .bgov{position:fixed;inset:0;z-index:1;background:linear-gradient(120deg,rgba(6,7,10,.85) 0%,rgba(6,7,10,.55) 50%,rgba(6,7,10,.75) 100%);pointer-events:none}
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:2px}
@@ -189,7 +190,7 @@ const BG={
   tasks:"assets/bg-tasks.jpg",
   milestones:"assets/bg-milestones.png",
   finance:"assets/bg-finance.png",
-  code:"assets/bg-code.jpg",
+  code:"",
 };
 const NAV=[
   {id:"overview",label:"Übersicht",icon:ic.overview},
@@ -566,7 +567,7 @@ function App(){
   return(
     <>
       {Object.entries(BG).map(([key,url])=>(
-        <div key={key} className={`bg ${page===key?"on":"off"}`} style={{backgroundImage:`url('${url}')`}}/>
+        <div key={key} className={`bg ${page===key?"on":"off"} ${key}`} style={{backgroundImage:url?`url('${url}')`:'none',background:url?undefined:'#06070A'}}/>
       ))}
       <div className="bgov"/>
       <div className="app">
