@@ -138,6 +138,8 @@ input::placeholder{color:var(--t3)}select option{background:#14161E}
 .dbe{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.2);color:var(--err)}
 .dbo{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.18);color:var(--ok)}
 .spin{width:12px;height:12px;border:2px solid rgba(110,168,255,.3);border-top-color:#A8C8FF;border-radius:50%;animation:spin 600ms linear infinite;display:inline-block}
+.savepill{position:fixed;right:20px;bottom:20px;z-index:10;display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:30px;background:rgba(6,7,10,.72);border:1px solid var(--gborder);backdrop-filter:blur(12px);font-size:10px;color:var(--t2);font-family:'IBM Plex Mono',monospace}
+.savedot{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 7px var(--ok)}
 /* TERMINAL */
 .tw{display:flex;flex-direction:column;height:calc(100vh - 180px);min-height:400px;padding:0;overflow:hidden}
 .tbar{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--gborder)}
@@ -164,6 +166,12 @@ const SB_ANON ="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const TTYD_URL="https://describing-ipaq-gardening-website.trycloudflare.com";
 
 const H={apikey:SB_ANON,Authorization:`Bearer ${SB_ANON}`,"Content-Type":"application/json",Prefer:"return=representation"};
+const STORAGE_KEY="practio-dashboard-v1";
+const EMPTY_DATA={persons:[],leads:[],tasks:[],milestones:[],costs:[],scenarios:[],drafts:{}};
+const loadLocal=()=>{
+  try{return {...EMPTY_DATA,...JSON.parse(localStorage.getItem(STORAGE_KEY)||"{}")};}
+  catch{return EMPTY_DATA;}
+};
 const sb={
   get:async(t,q="")=>{const r=await fetch(`${SB_URL}/rest/v1/${t}?${q}`,{headers:H});if(!r.ok)throw new Error(await r.text());return r.json();},
   post:async(t,b)=>{const r=await fetch(`${SB_URL}/rest/v1/${t}`,{method:"POST",headers:H,body:JSON.stringify(b)});if(!r.ok)throw new Error(await r.text());return r.json();},
@@ -285,7 +293,12 @@ function Overview({leads,tasks,persons,db}){
 
 function Leads({leads,setLeads,db}){
   const [filter,setFilter]=useState("alle");
-  const [nl,setNl]=useState({name:"",city:"",type:"Psychotherapie"});
+  const saved=loadLocal();
+  const [nl,setNl]=useState(saved.drafts?.lead||{name:"",city:"",type:"Psychotherapie"});
+  useEffect(()=>{
+    const data=loadLocal();
+    localStorage.setItem(STORAGE_KEY,JSON.stringify({...data,drafts:{...data.drafts,lead:nl}}));
+  },[nl]);
   const filtered=filter==="alle"?leads:leads.filter(l=>l.status===filter);
   const add=async()=>{
     if(!nl.name.trim())return;
@@ -344,8 +357,14 @@ function Leads({leads,setLeads,db}){
 }
 
 function Tasks({tasks,setTasks,persons,setPersons,db}){
-  const [addP,setAddP]=useState(false);
-  const [newPN,setNewPN]=useState("");
+  const saved=loadLocal();
+  const [addP,setAddP]=useState(Boolean(saved.drafts?.person));
+  const [newPN,setNewPN]=useState(saved.drafts?.person||"");
+  const [taskDrafts,setTaskDrafts]=useState(saved.drafts?.tasks||{});
+  useEffect(()=>{
+    const data=loadLocal();
+    localStorage.setItem(STORAGE_KEY,JSON.stringify({...data,drafts:{...data.drafts,person:newPN,tasks:taskDrafts}}));
+  },[newPN,taskDrafts]);
   const toggle=async id=>{
     const t=tasks.find(x=>x.id===id);
     setTasks(ts=>ts.map(x=>x.id===id?{...x,done:!x.done}:x));
@@ -358,6 +377,7 @@ function Tasks({tasks,setTasks,persons,setPersons,db}){
   const addT=async(text,assignee_id)=>{
     if(!text.trim())return;
     const row={text:text.trim(),meta:"",assignee_id,done:false,priority:"medium"};
+    setTaskDrafts(ds=>({...ds,[assignee_id]:""}));
     try{if(db==="ok"){const[r]=await sb.post("tasks",row);setTasks(ts=>[...ts,r]);return;}}catch{}
     setTasks(ts=>[...ts,{...row,id:Date.now().toString()}]);
   };
@@ -405,7 +425,7 @@ function Tasks({tasks,setTasks,persons,setPersons,db}){
               }
             </div>
             <div className="tci">
-              <input placeholder="+ Aufgabe…" onKeyDown={e=>{if(e.key==="Enter"&&e.target.value.trim()){addT(e.target.value,p.id);e.target.value="";}}}/>
+              <input placeholder="+ Aufgabe…" value={taskDrafts[p.id]||""} onChange={e=>setTaskDrafts(ds=>({...ds,[p.id]:e.target.value}))} onKeyDown={e=>{if(e.key==="Enter"&&e.target.value.trim())addT(e.target.value,p.id);}}/>
             </div>
           </div>
         ))}
@@ -536,14 +556,17 @@ function Terminal(){
 }
 
 function App(){
+  const initial=useRef(loadLocal()).current;
   const [page,setPage]=useState("overview");
   const [db,setDb]=useState("loading");
-  const [persons,setPersons]=useState([]);
-  const [leads,setLeads]=useState([]);
-  const [tasks,setTasks]=useState([]);
-  const [milestones,setMilestones]=useState([]);
-  const [costs,setCosts]=useState([]);
-  const [scenarios,setScenarios]=useState([]);
+  const [persons,setPersons]=useState(initial.persons);
+  const [leads,setLeads]=useState(initial.leads);
+  const [tasks,setTasks]=useState(initial.tasks);
+  const [milestones,setMilestones]=useState(initial.milestones);
+  const [costs,setCosts]=useState(initial.costs);
+  const [scenarios,setScenarios]=useState(initial.scenarios);
+  const [savedAt,setSavedAt]=useState(initial.savedAt||null);
+  const [loaded,setLoaded]=useState(false);
 
   useEffect(()=>{
     (async()=>{
@@ -556,12 +579,30 @@ function App(){
           sb.get("finance_costs","order=label.asc"),
           sb.get("finance_scenarios","order=sort_order.asc"),
         ]);
-        setPersons(p);setLeads(l);setTasks(t);
-        setMilestones(m);setCosts(c);setScenarios(sc);
+        if(p.length)setPersons(p);
+        if(l.length)setLeads(l);
+        if(t.length)setTasks(t);
+        if(m.length)setMilestones(m);
+        if(c.length)setCosts(c);
+        if(sc.length)setScenarios(sc);
         setDb("ok");
       }catch{setDb("error");}
+      finally{setLoaded(true);}
     })();
   },[]);
+
+  useEffect(()=>{
+    if(!loaded)return;
+    const timer=setTimeout(()=>{
+      const savedAt=new Date().toISOString();
+      const current=loadLocal();
+      localStorage.setItem(STORAGE_KEY,JSON.stringify({
+        ...current,persons,leads,tasks,milestones,costs,scenarios,savedAt
+      }));
+      setSavedAt(savedAt);
+    },250);
+    return()=>clearTimeout(timer);
+  },[loaded,persons,leads,tasks,milestones,costs,scenarios]);
 
   const open=tasks.filter(t=>!t.done).length;
 
@@ -571,6 +612,10 @@ function App(){
         <div key={key} className={`bg ${page===key?"on":"off"} ${key}`} style={{backgroundImage:url?`url('${url}')`:'none'}}/>
       ))}
       <div className="bgov"/>
+      <div className="savepill" title={savedAt?new Date(savedAt).toLocaleString("de-DE"):"Automatisches Speichern aktiv"}>
+        <span className="savedot"></span>
+        {savedAt?`Automatisch gespeichert · ${new Date(savedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})}`:"Autosave aktiv"}
+      </div>
       <div className="app">
         <nav className="sb" role="navigation">
           <div className="logo">
