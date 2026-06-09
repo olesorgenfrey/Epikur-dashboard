@@ -46,11 +46,10 @@ body {
 /* === BACKGROUND IMAGE LAYER (changes per page) === */
 .bg-layer {
   position: fixed; inset: 0; z-index: 0;
-  background-size: cover; background-position: center;
+  background-size: contain; background-position: center; background-repeat: no-repeat;
   transition: opacity 800ms var(--ease-out), transform 1200ms var(--ease-out);
-  transform: scale(1.05);
 }
-.bg-layer.active { opacity: 1; transform: scale(1); }
+.bg-layer.active { opacity: 1; }
 .bg-layer.inactive { opacity: 0; }
 .bg-overlay {
   position: fixed; inset: 0; z-index: 1;
@@ -367,7 +366,7 @@ const { useState } = React;
 const BG = {
   overview:   "images/yacht-riva.jpg",
   leads:      "images/dubai-laptop.jpg",
-  tasks:      "https://images.unsplash.com/photo-1493962853295-0fd70327578a?w=1920&q=80",  // luxury watch / timepiece
+  tasks:      "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=1920&q=80",  // porsche 911
   milestones: "images/suit-win.jpg",
   finance:    "images/finance-quant.jpg",
 };
