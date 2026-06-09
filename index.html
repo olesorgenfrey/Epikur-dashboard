@@ -198,7 +198,8 @@ const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 
 // ── TERMINAL / SERVER CONFIG ─────────────────────────────────
 // trycloudflare URLs ändern sich bei jedem Neustart — hier aktuelle URL eintragen
-const TERMINAL_SERVER = "https://describing-ipaq-gardening-website.trycloudflare.com";
+// ttyd Web-Terminal URL — nach `cloudflared tunnel --url http://localhost:7681` hier eintragen
+const TTYD_URL = "https://describing-ipaq-gardening-website.trycloudflare.com";
 
 const sb = {
   headers: { "apikey": SB_ANON, "Authorization": `Bearer ${SB_ANON}`, "Content-Type": "application/json", "Prefer": "return=representation" },
@@ -614,93 +615,83 @@ function Finance({costs,scenarios,dbStatus}) {
   );
 }
 
-// ── TERMINAL (CODE TAB) ──────────────────────────────────────
+// ── TERMINAL (CODE TAB) — ttyd iframe ────────────────────────
 function Terminal() {
-  const [history,setHistory]=useState([
-    {type:"out",text:"Practio Code Terminal — verbunden mit deinem Server via Cloudflare Tunnel."},
-    {type:"out",text:"Tippe einen Befehl ein und drücke Enter. 'clear' leert das Terminal."},
-  ]);
-  const [cmd,setCmd]=useState("");
-  const [busy,setBusy]=useState(false);
   const [online,setOnline]=useState(null);
-  const bodyRef=React.useRef(null);
-  const [cmdHistory,setCmdHistory]=useState([]);
-  const [histIdx,setHistIdx]=useState(-1);
+  const [blocked,setBlocked]=useState(false);
+  const [reloadKey,setReloadKey]=useState(0);
 
   React.useEffect(()=>{
-    // ping server
+    let cancelled=false;
     (async()=>{
       try{
-        const r=await fetch(`${TERMINAL_SERVER}/health`,{method:"GET",signal:AbortSignal.timeout(6000)});
-        setOnline(r.ok);
-      }catch{ setOnline(false); }
+        // no-cors ping: bei erreichbarem Server kommt kein Netzwerkfehler
+        await fetch(TTYD_URL,{mode:"no-cors",signal:AbortSignal.timeout(6000)});
+        if(!cancelled) setOnline(true);
+      }catch{ if(!cancelled) setOnline(false); }
     })();
-  },[]);
+    return ()=>{cancelled=true;};
+  },[reloadKey]);
 
+  // Wenn iframe nach kurzer Zeit nicht lädt → vermutlich X-Frame-Options block
   React.useEffect(()=>{
-    if(bodyRef.current) bodyRef.current.scrollTop=bodyRef.current.scrollHeight;
-  },[history]);
-
-  const run=async()=>{
-    const c=cmd.trim();
-    if(!c)return;
-    if(c==="clear"){ setHistory([]); setCmd(""); return; }
-    setCmdHistory(h=>[...h,c]); setHistIdx(-1);
-    setHistory(h=>[...h,{type:"cmd",text:c}]);
-    setCmd(""); setBusy(true);
-    try{
-      const r=await fetch(`${TERMINAL_SERVER}/exec`,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({command:c}),
-        signal:AbortSignal.timeout(30000),
-      });
-      if(!r.ok) throw new Error(`HTTP ${r.status}`);
-      const data=await r.json();
-      const out=(data.stdout||"")+(data.stderr?("\n"+data.stderr):"");
-      setHistory(h=>[...h,{type:data.stderr&&!data.stdout?"err":"out",text:out||"(keine Ausgabe)"}]);
-    }catch(e){
-      setHistory(h=>[...h,{type:"err",text:`Fehler: ${e.message} — Server erreichbar? URL in TERMINAL_SERVER prüfen.`}]);
-    }
-    setBusy(false);
-  };
-
-  const onKey=e=>{
-    if(e.key==="Enter")run();
-    else if(e.key==="ArrowUp"){ e.preventDefault(); const ni=histIdx<0?cmdHistory.length-1:Math.max(0,histIdx-1); if(cmdHistory[ni]!==undefined){setHistIdx(ni);setCmd(cmdHistory[ni]);} }
-    else if(e.key==="ArrowDown"){ e.preventDefault(); if(histIdx>=0){const ni=histIdx+1; if(ni>=cmdHistory.length){setHistIdx(-1);setCmd("");}else{setHistIdx(ni);setCmd(cmdHistory[ni]);}} }
-  };
+    setBlocked(false);
+    const t=setTimeout(()=>{
+      const f=document.getElementById("ttyd-frame");
+      try{
+        // Zugriff auf contentDocument wirft bei cross-origin block nicht, aber leeres Frame bleibt
+        if(f && f.contentWindow && f.contentWindow.length===0){ /* heuristik */ }
+      }catch{}
+    },4000);
+    return ()=>clearTimeout(t);
+  },[reloadKey]);
 
   return (
     <div className="page">
       <div className="page-head">
-        <div><h1 className="page-title">Co<em>de</em></h1><p className="page-sub">Terminal · {TERMINAL_SERVER.replace("https://","")}</p></div>
+        <div><h1 className="page-title">Co<em>de</em></h1><p className="page-sub">Web-Terminal · {TTYD_URL.replace("https://","")}</p></div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <span className="term-status" style={{padding:"7px 14px",borderRadius:30,background:"rgba(255,255,255,.05)",border:"1px solid var(--glass-border)"}}>
+            <span className="term-status-dot" style={{background:online===null?"#FBBf24":online?"#4ADE80":"#F87171",boxShadow:`0 0 7px ${online===null?"#FBBf24":online?"#4ADE80":"#F87171"}`}}></span>
+            {online===null?"prüfe…":online?"erreichbar":"offline"}
+          </span>
+          <button className="btn btn-ghost" onClick={()=>setReloadKey(k=>k+1)}>↻ Neu laden</button>
+          <a className="btn btn-primary" href={TTYD_URL} target="_blank" rel="noopener noreferrer" style={{textDecoration:"none"}}>Im neuen Tab öffnen ↗</a>
+        </div>
       </div>
-      <div className="glass term-wrap">
+      <div className="glass term-wrap" style={{padding:0,overflow:"hidden"}}>
         <div className="term-bar">
           <div className="term-dots">
             <div className="term-dot" style={{background:"#F87171"}}></div>
             <div className="term-dot" style={{background:"#FBBf24"}}></div>
             <div className="term-dot" style={{background:"#4ADE80"}}></div>
           </div>
-          <span className="term-title">bash — practio-server</span>
-          <span className="term-status">
-            <span className="term-status-dot" style={{background:online===null?"#FBBf24":online?"#4ADE80":"#F87171",boxShadow:`0 0 7px ${online===null?"#FBBf24":online?"#4ADE80":"#F87171"}`}}></span>
-            {online===null?"prüfe…":online?"online":"offline"}
-          </span>
+          <span className="term-title">bash — practio-server (ttyd)</span>
         </div>
-        <div className="term-body" ref={bodyRef} onClick={()=>document.getElementById("term-in")?.focus()}>
-          {history.map((h,i)=>(
-            h.type==="cmd"
-              ? <div className="term-prompt-line" key={i}><span>➜</span><span className="term-cmd">{h.text}</span></div>
-              : <div className={h.type==="err"?"term-err":"term-out"} key={i}><span className="term-line">{h.text}</span></div>
-          ))}
-          {busy&&<div className="term-out"><span className="spinner" style={{display:"inline-block",verticalAlign:"middle"}}></span> läuft…</div>}
-        </div>
-        <div className="term-input-line">
-          <span className="term-ps1">➜</span>
-          <input id="term-in" className="term-input" autoFocus value={cmd} onChange={e=>setCmd(e.target.value)} onKeyDown={onKey} placeholder={online?"Befehl eingeben…":"Server offline — TERMINAL_SERVER URL aktualisieren"} disabled={busy} spellCheck={false} autoComplete="off"/>
-        </div>
+        {online===false ? (
+          <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16,padding:40,textAlign:"center"}}>
+            <div style={{fontSize:15,fontWeight:600}}>Terminal-Server nicht erreichbar</div>
+            <div style={{fontSize:13,color:"var(--text-2)",maxWidth:440,lineHeight:1.6,fontFamily:"'IBM Plex Mono',monospace"}}>
+              Starte auf deinem Server:<br/><br/>
+              ttyd -W -c admin:PASSWORT bash<br/>
+              cloudflared tunnel --url http://localhost:7681<br/><br/>
+              Dann die URL oben in <strong>TTYD_URL</strong> eintragen.
+            </div>
+            <button className="btn btn-ghost" onClick={()=>setReloadKey(k=>k+1)}>Erneut prüfen</button>
+          </div>
+        ) : (
+          <iframe
+            id="ttyd-frame"
+            key={reloadKey}
+            src={TTYD_URL}
+            title="Web-Terminal"
+            style={{flex:1,width:"100%",border:"none",background:"#000",minHeight:0}}
+            allow="clipboard-read; clipboard-write"
+          />
+        )}
+      </div>
+      <div style={{marginTop:12,fontSize:11,color:"var(--text-3)",fontFamily:"'IBM Plex Mono',monospace",lineHeight:1.6}}>
+        Falls das eingebettete Terminal leer bleibt, blockt Cloudflare das iframe — nutze dann „Im neuen Tab öffnen".
       </div>
     </div>
   );
