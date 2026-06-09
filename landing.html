@@ -116,7 +116,7 @@ nav {
 .hero-bg {
   position: absolute; inset: 0;
   background-image: url('images/yacht-riva.jpg');
-  background-size: contain; background-position: center; background-repeat: no-repeat;
+  background-size: cover; background-position: center;
   animation: heroZoom 8s var(--ease-out) forwards;
 }
 .hero-bg::after {
@@ -222,7 +222,7 @@ section { padding: 120px 48px; }
 }
 .bento-cell.visible { opacity: 1; transform: translateY(0); }
 .bento-cell img {
-  width: 100%; height: 100%; object-fit: contain;
+  width: 100%; height: 100%; object-fit: cover;
   transition: transform 600ms var(--ease-out);
 }
 .bento-cell:hover img { transform: scale(1.06); }
@@ -261,7 +261,7 @@ section { padding: 120px 48px; }
   overflow: hidden; border-right: 1px solid var(--border);
   position: relative;
 }
-.marquee-img img { width: 100%; height: 100%; object-fit: contain; transition: transform 500ms var(--ease-out); }
+.marquee-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 500ms var(--ease-out); }
 .marquee-img:hover img { transform: scale(1.08); }
 .marquee-img-cap {
   position: absolute; bottom: 16px; left: 16px;
@@ -349,7 +349,7 @@ section { padding: 120px 48px; }
 .cta-bg {
   position: absolute; inset: 0;
   background-image: url('images/dubai-laptop.jpg');
-  background-size: contain; background-position: center; background-repeat: no-repeat;
+  background-size: cover; background-position: center;
 }
 .cta-bg::after {
   content: ''; position: absolute; inset: 0;
