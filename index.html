@@ -11,371 +11,237 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <style>
 :root {
-  --glass-bg:      rgba(255, 255, 255, 0.02);
-  --glass-bg-2:    rgba(255, 255, 255, 0.01);
-  --glass-border:  rgba(255, 255, 255, 0.28);
-  --glass-border-strong: rgba(255, 255, 255, 0.40);
-  --glass-highlight: rgba(255, 255, 255, 0.06);
-
+  --glass-bg:     rgba(255,255,255,.02);
+  --glass-border: rgba(255,255,255,.28);
   --text:   #F4F6FB;
-  --text-2: rgba(244, 246, 251, 0.62);
-  --text-3: rgba(244, 246, 251, 0.35);
-
+  --text-2: rgba(244,246,251,.62);
+  --text-3: rgba(244,246,251,.35);
   --accent:  #6EA8FF;
   --gold:    #D4B483;
   --success: #4ADE80;
   --warning: #FBBf24;
   --danger:  #F87171;
   --purple:  #C084FC;
+  --ease-out: cubic-bezier(0.23,1,0.32,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,sans-serif;color:var(--text);background:#06070A;min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.bg-layer{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center;transition:opacity 800ms var(--ease-out),transform 1200ms var(--ease-out);transform:scale(1.04)}
+.bg-layer.active{opacity:1;transform:scale(1)}
+.bg-layer.inactive{opacity:0}
+.bg-overlay{position:fixed;inset:0;z-index:1;background:linear-gradient(120deg,rgba(6,7,10,.85) 0%,rgba(6,7,10,.55) 50%,rgba(6,7,10,.75) 100%);pointer-events:none}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:2px}
+.glass{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:14px;position:relative;overflow:hidden}
+.glass::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:rgba(255,255,255,.45);pointer-events:none}
+.glass::after{content:'';position:absolute;inset:0;border-radius:14px;background:linear-gradient(135deg,rgba(255,255,255,.07) 0%,transparent 40%);pointer-events:none}
+.app{position:relative;z-index:2;display:flex;min-height:100vh;padding:20px;gap:20px}
+.sidebar{width:220px;flex-shrink:0;display:flex;flex-direction:column;padding:22px 0;position:sticky;top:20px;height:calc(100vh - 40px);animation:slideIn 700ms var(--ease-out) both;background:transparent;border:none}
+.logo-row{display:flex;align-items:center;gap:11px;padding:0 18px 20px}
+.logo-mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(145deg,#6EA8FF,#A8C8FF);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#0A0E18;flex-shrink:0;box-shadow:0 4px 16px rgba(110,168,255,.35)}
+.logo-name{font-size:15px;font-weight:700;letter-spacing:-.3px}
+.logo-meta{font-size:10px;color:var(--text-3);font-family:'IBM Plex Mono',monospace}
+.nav-label{font-size:9px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--text-3);padding:18px 18px 8px}
+.nav-item{display:flex;align-items:center;gap:12px;margin:2px 10px;padding:10px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text-2);transition:all 180ms var(--ease-out);min-height:44px;border:1px solid transparent;background:transparent;appearance:none;-webkit-appearance:none;width:calc(100% - 20px);text-align:left;font-family:inherit;position:relative;overflow:hidden}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.05)}
+.nav-item.active{color:var(--text);background:rgba(110,168,255,.12);border-color:rgba(110,168,255,.25)}
+.nav-item.active::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.nav-icon{width:16px;height:16px;flex-shrink:0;display:flex}
+.nav-badge{margin-left:auto;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;background:rgba(110,168,255,.2);color:#A8C8FF;padding:2px 6px;border-radius:20px}
+.sidebar-foot{margin-top:auto;padding:16px 18px 0;font-family:'Instrument Serif',serif;font-style:italic;font-size:14px;color:var(--text-2);line-height:1.4}
+.main{flex:1;min-width:0;padding-bottom:40px}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;padding-top:8px;animation:fadeUp 500ms var(--ease-out) both}
+.page-title{font-family:'Instrument Serif',serif;font-size:42px;line-height:1;letter-spacing:-.5px}
+.page-title em{font-style:italic;color:var(--gold)}
+.page-sub{font-size:12px;color:var(--text-2);font-family:'IBM Plex Mono',monospace;margin-top:5px}
+.head-pill{display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:30px;background:rgba(255,255,255,.05);border:1px solid var(--glass-border);font-size:11px;color:var(--text-2);font-family:'IBM Plex Mono',monospace}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--success);box-shadow:0 0 7px var(--success);animation:pulse 2s ease-in-out infinite}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.stat-card{padding:20px;animation:fadeUp 600ms var(--ease-out) both;transition:transform 250ms var(--ease-out)}
+.stat-card:hover{transform:translateY(-2px)}
+.stat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.stat-name{font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3)}
+.stat-big{font-size:36px;font-weight:700;letter-spacing:-1.5px;line-height:1;font-variant-numeric:tabular-nums}
+.stat-cap{font-size:11px;color:var(--text-2);font-family:'IBM Plex Mono',monospace;margin-top:7px}
+.card{animation:fadeUp 600ms var(--ease-out) both}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--glass-border)}
+.card-title{font-size:13px;font-weight:600}
+.card-body{padding:18px 20px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+.funnel-row{display:flex;align-items:center;gap:12px;padding:8px 0}
+.funnel-label{font-size:11px;color:var(--text-2);font-family:'IBM Plex Mono',monospace;width:76px;flex-shrink:0}
+.funnel-track{flex:1;height:20px;border-radius:6px;background:rgba(255,255,255,.05);overflow:hidden}
+.funnel-fill{height:100%;border-radius:6px;display:flex;align-items:center;padding-left:8px;font-size:11px;font-weight:600;color:#06070A;transition:width 700ms var(--ease-out)}
+.funnel-num{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--text-2);width:18px;text-align:right}
+.prog-track{height:4px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden}
+.prog-fill{height:100%;border-radius:3px;transition:width 700ms var(--ease-out)}
+.ms-row{padding:12px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.ms-row:last-child{border-bottom:none}
+.ms-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.ms-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.ms-name{font-size:13px;font-weight:600;flex:1}
+.ms-date{font-size:10px;color:var(--text-3);font-family:'IBM Plex Mono',monospace}
 
-  --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);
-  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
-}
+/* TASKS MULTI-LIST */
+.tasks-board{display:flex;gap:14px;margin-bottom:18px;overflow-x:auto;padding-bottom:4px}
+.tasks-board::-webkit-scrollbar{height:3px}
+.task-col{flex:0 0 280px;display:flex;flex-direction:column}
+.task-col-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--glass-border)}
+.task-col-name{display:flex;align-items:center;gap:10px}
+.avatar{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid var(--glass-border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--text);flex-shrink:0}
+.task-col-title{font-size:13px;font-weight:600}
+.task-col-body{flex:1;padding:8px 14px;min-height:80px}
+.task-col-empty{text-align:center;padding:22px 0;color:var(--text-3);font-size:11px;font-family:'IBM Plex Mono',monospace}
+.task-row{display:flex;align-items:flex-start;gap:11px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.task-row:last-child{border-bottom:none}
+.task-check{width:18px;height:18px;flex-shrink:0;margin-top:2px;border:1.5px solid rgba(255,255,255,.2);border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 160ms var(--ease-out);background:transparent;padding:0}
+.task-check:hover{border-color:var(--accent);background:rgba(110,168,255,.12)}
+.task-check.done{background:var(--success);border-color:var(--success)}
+.task-check svg{width:10px;height:10px;opacity:0;transition:opacity 150ms}
+.task-check.done svg{opacity:1}
+.task-body{flex:1;min-width:0}
+.task-text{font-size:13px;font-weight:500;line-height:1.4}
+.task-text.done{text-decoration:line-through;color:var(--text-3)}
+.task-meta{font-size:10px;color:var(--text-3);font-family:'IBM Plex Mono',monospace;margin-top:2px}
+.task-del{background:none;border:none;color:var(--text-3);cursor:pointer;padding:2px 5px;font-size:13px;line-height:1;transition:color 140ms;align-self:center}
+.task-del:hover{color:var(--danger)}
+.task-col-input{padding:10px 14px;border-top:1px solid var(--glass-border)}
+.task-col-input input{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:var(--text);padding:8px 11px;border-radius:8px;font-size:12px;font-family:'Inter',sans-serif;outline:none;transition:border-color 150ms}
+.task-col-input input:focus{border-color:var(--accent)}
+.task-col-input input::placeholder{color:var(--text-3)}
+.add-col-btn{flex:0 0 220px;display:flex;align-items:center;justify-content:center;gap:8px;border:1px dashed rgba(255,255,255,.15);border-radius:14px;color:var(--text-3);font-size:13px;cursor:pointer;transition:all 200ms var(--ease-out);background:transparent;font-family:'Inter',sans-serif;min-height:160px}
+.add-col-btn:hover{border-color:rgba(255,255,255,.3);color:var(--text-2);background:rgba(255,255,255,.02)}
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;font-family:'IBM Plex Mono',monospace}
+.badge::before{content:'';width:4px;height:4px;border-radius:50%;background:currentColor}
+.badge-blue{background:rgba(110,168,255,.15);color:#A8C8FF}
+.badge-green{background:rgba(74,222,128,.13);color:var(--success)}
+.badge-yellow{background:rgba(251,191,36,.13);color:var(--warning)}
+.badge-red{background:rgba(248,113,113,.13);color:var(--danger)}
+.badge-gray{background:rgba(255,255,255,.07);color:var(--text-2)}
+.badge-purple{background:rgba(192,132,252,.13);color:var(--purple)}
 
-body {
-  font-family: 'Inter', -apple-system, sans-serif;
-  color: var(--text);
-  background: #06070A;
-  min-height: 100vh;
-  -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
-}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);padding:0 13px 11px;border-bottom:1px solid var(--glass-border)}
+.tbl td{padding:11px 13px;font-size:12px;color:var(--text-2);border-bottom:1px solid rgba(255,255,255,.05)}
+.tbl tbody tr{transition:background 130ms;cursor:pointer}
+.tbl tbody tr:hover td{background:rgba(255,255,255,.03)}
+.tbl tbody tr:last-child td{border-bottom:none}
+.td-name{font-weight:600;color:var(--text)!important}
+.td-mono{font-family:'IBM Plex Mono',monospace;font-size:10px!important}
 
-/* === BACKGROUND IMAGE LAYER (changes per page) === */
-.bg-layer {
-  position: fixed; inset: 0; z-index: 0;
-  background-size: cover; background-position: center;
-  transition: opacity 800ms var(--ease-out), transform 1200ms var(--ease-out);
-  transform: scale(1.05);
-}
-.bg-layer.active { opacity: 1; transform: scale(1); }
-.bg-layer.inactive { opacity: 0; }
-.bg-overlay {
-  position: fixed; inset: 0; z-index: 1;
-  background:
-    radial-gradient(ellipse 100% 80% at 30% 20%, rgba(6,7,10,.4), transparent),
-    linear-gradient(120deg, rgba(6,7,10,.82) 0%, rgba(6,7,10,.55) 50%, rgba(6,7,10,.75) 100%);
-  pointer-events: none;
-}
+.fin-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px}
+.fin-row:last-child{border-bottom:none}
+.fin-label{color:var(--text-2);display:flex;align-items:center;gap:9px}
+.fin-dot{width:6px;height:6px;border-radius:50%}
+.fin-val{font-family:'IBM Plex Mono',monospace;font-weight:600;font-variant-numeric:tabular-nums}
 
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 2px; }
+.tabs{display:flex;gap:5px;margin-bottom:18px;flex-wrap:wrap}
+.tab{padding:7px 13px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;color:var(--text-2);border:1px solid transparent;background:rgba(255,255,255,.03);transition:all 160ms var(--ease-out);min-height:34px;display:inline-flex;align-items:center;gap:5px;font-family:'Inter',sans-serif}
+.tab:hover{color:var(--text);background:rgba(255,255,255,.07)}
+.tab.active{color:var(--text);background:rgba(110,168,255,.15);border-color:rgba(110,168,255,.25)}
+.tab-ct{font-family:'IBM Plex Mono',monospace;opacity:.55}
 
-/* === GLASS PRIMITIVE === */
-.glass {
-  background: var(--glass-bg);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: 1px solid var(--glass-border);
-  border-radius: 14px;
-  position: relative;
-  overflow: hidden;
-}
-.glass::before {
-  content: ''; position: absolute; inset: 0; border-radius: inherit;
-  pointer-events: none;
-  background: linear-gradient(135deg, rgba(255,255,255,.18) 0%, transparent 30%);
-}
-.glass::after {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
-  background: rgba(255,255,255,.45);
-  pointer-events: none;
-}
+input,select{background:rgba(255,255,255,.05);border:1px solid var(--glass-border);color:var(--text);padding:9px 12px;border-radius:9px;font-size:12px;font-family:'Inter',sans-serif;outline:none;transition:border-color 160ms;min-height:38px}
+input:focus,select:focus{border-color:var(--accent)}
+input::placeholder{color:var(--text-3)}
+select option{background:#14161E}
+.status-sel{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:var(--text-2);padding:4px 7px;border-radius:7px;font-size:10px;font-family:'IBM Plex Mono',monospace;cursor:pointer;outline:none}
+.btn{padding:9px 16px;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;border:none;font-family:'Inter',sans-serif;transition:all 160ms var(--ease-out);min-height:38px;display:inline-flex;align-items:center;gap:5px}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:linear-gradient(135deg,#6EA8FF,#5A93FF);color:#06070A;box-shadow:0 3px 12px rgba(110,168,255,.3)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 5px 16px rgba(110,168,255,.4)}
+.btn-ghost{background:rgba(255,255,255,.05);color:var(--text-2);border:1px solid var(--glass-border)}
+.btn-ghost:hover{background:rgba(255,255,255,.09);color:var(--text)}
+.input-row{display:flex;gap:8px;padding-top:16px;border-top:1px solid var(--glass-border);margin-top:14px}
 
-/* === LAYOUT === */
-.app { position: relative; z-index: 2; display: flex; min-height: 100vh; padding: 20px; gap: 20px; }
+/* LOADING / ERROR */
+.db-banner{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:9px;margin-bottom:18px;font-size:12px;font-family:'IBM Plex Mono',monospace}
+.db-loading{background:rgba(110,168,255,.1);border:1px solid rgba(110,168,255,.2);color:#A8C8FF}
+.db-error{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.2);color:var(--danger)}
+.db-ok{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.18);color:var(--success)}
+.spinner{width:12px;height:12px;border:2px solid rgba(110,168,255,.3);border-top-color:#A8C8FF;border-radius:50%;animation:spin 600ms linear infinite}
 
-/* === SIDEBAR === */
-.sidebar {
-  width: 230px; flex-shrink: 0;
-  display: flex; flex-direction: column;
-  padding: 24px 0;
-  position: sticky; top: 20px; height: calc(100vh - 40px);
-  animation: slideIn 700ms var(--ease-out) both;
-  background: transparent;
-  backdrop-filter: none; -webkit-backdrop-filter: none;
-  border: none; border-radius: 0;
-}
-.sidebar::before, .sidebar::after { display: none; }
-
-.sidebar-logo { padding: 0 22px 22px; }
-.logo-row { display: flex; align-items: center; gap: 12px; }
-.logo-mark {
-  width: 38px; height: 38px; border-radius: 11px;
-  background: linear-gradient(145deg, #6EA8FF, #A8C8FF);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 17px; font-weight: 700; color: #0A0E18; flex-shrink: 0;
-  box-shadow: 0 4px 20px rgba(110,168,255,.4), inset 0 1px 1px rgba(255,255,255,.5);
-}
-.logo-name { font-size: 16px; font-weight: 700; letter-spacing: -.3px; }
-.logo-meta { font-size: 11px; color: var(--text-3); font-family: 'IBM Plex Mono', monospace; }
-
-.nav-label {
-  font-size: 10px; font-weight: 600; letter-spacing: 1.4px;
-  text-transform: uppercase; color: var(--text-3);
-  padding: 22px 22px 10px;
-}
-.nav-item {
-  display: flex; align-items: center; gap: 13px;
-  margin: 3px 12px; padding: 11px 14px;
-  border-radius: 8px; cursor: pointer;
-  font-size: 14px; font-weight: 500; color: var(--text-2);
-  transition: all 200ms var(--ease-out);
-  min-height: 44px; border: 1px solid transparent;
-  position: relative; overflow: hidden;
-  background: transparent; appearance: none; -webkit-appearance: none;
-  width: calc(100% - 24px); text-align: left; font-family: inherit;
-}
-.nav-item:hover { color: var(--text); background: rgba(255,255,255,.06); }
-.nav-item.active {
-  color: var(--text); background: rgba(110,168,255,.16);
-  border-color: rgba(110,168,255,.3);
-  box-shadow: inset 0 1px 1px rgba(255,255,255,.15);
-}
-.nav-item.active::before {
-  content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
-  width: 3px; background: var(--accent); border-radius: 0 3px 3px 0;
-}
-.nav-icon { width: 18px; height: 18px; flex-shrink: 0; display: flex; }
-.nav-badge {
-  margin-left: auto; font-size: 10px; font-weight: 600;
-  font-family: 'IBM Plex Mono', monospace;
-  background: rgba(110,168,255,.25); color: #A8C8FF;
-  padding: 2px 7px; border-radius: 20px;
-}
-
-.sidebar-foot {
-  margin-top: auto; padding: 18px 22px 0;
-  font-family: 'Instrument Serif', serif; font-style: italic;
-  font-size: 15px; color: var(--text-2); line-height: 1.4;
-}
-
-/* === MAIN === */
-.main { flex: 1; min-width: 0; padding-bottom: 40px; }
-
-.page-head {
-  display: flex; align-items: flex-end; justify-content: space-between;
-  margin-bottom: 28px; padding-top: 8px;
-  animation: fadeUp 600ms var(--ease-out) both;
-}
-.page-title {
-  font-family: 'Instrument Serif', serif; font-size: 46px;
-  line-height: 1; letter-spacing: -.5px;
-}
-.page-title em { font-style: italic; color: var(--gold); }
-.page-sub { font-size: 13px; color: var(--text-2); font-family: 'IBM Plex Mono', monospace; margin-top: 6px; }
-.head-pill {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 16px; border-radius: 30px;
-  background: rgba(255,255,255,.06); border: 1px solid var(--glass-border);
-  font-size: 12px; color: var(--text-2); font-family: 'IBM Plex Mono', monospace;
-}
-.live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); animation: pulse 2s ease-in-out infinite; }
-
-/* === STAT GRID === */
-.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
-.stat-card {
-  padding: 22px;
-  animation: fadeUp 600ms var(--ease-out) both;
-  transition: transform 300ms var(--ease-out);
-  border-radius: 14px;
-}
-.stat-card:hover { transform: translateY(-3px); }
-.stat-card:nth-child(1){animation-delay:60ms}
-.stat-card:nth-child(2){animation-delay:110ms}
-.stat-card:nth-child(3){animation-delay:160ms}
-.stat-card:nth-child(4){animation-delay:210ms}
-.stat-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.stat-name { font-size: 11px; font-weight: 600; letter-spacing: .8px; text-transform: uppercase; color: var(--text-3); }
-.stat-ico {
-  width: 32px; height: 32px; border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(255,255,255,.08); box-shadow: inset 0 1px 1px rgba(255,255,255,.12);
-}
-.stat-big { font-size: 38px; font-weight: 700; letter-spacing: -1.5px; line-height: 1; font-variant-numeric: tabular-nums; }
-.stat-cap { font-size: 12px; color: var(--text-2); font-family: 'IBM Plex Mono', monospace; margin-top: 8px; }
-
-/* === CARD === */
-.card { animation: fadeUp 600ms var(--ease-out) both; }
-.card-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 18px 22px; border-bottom: 1px solid var(--glass-border);
-}
-.card-title { font-size: 14px; font-weight: 600; }
-.card-body { padding: 20px 22px; }
-
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
-
-/* === FUNNEL === */
-.funnel-row { display: flex; align-items: center; gap: 14px; padding: 9px 0; }
-.funnel-label { font-size: 12px; color: var(--text-2); font-family: 'IBM Plex Mono', monospace; width: 78px; flex-shrink: 0; }
-.funnel-track { flex: 1; height: 22px; border-radius: 8px; background: rgba(255,255,255,.06); overflow: hidden; }
-.funnel-fill {
-  height: 100%; border-radius: 8px; display: flex; align-items: center;
-  padding-left: 10px; font-size: 11px; font-weight: 600; color: #06070A;
-  transition: width 700ms var(--ease-out);
-  box-shadow: inset 0 1px 1px rgba(255,255,255,.4);
-}
-.funnel-num { font-size: 12px; font-family: 'IBM Plex Mono', monospace; color: var(--text-2); width: 20px; text-align: right; }
-
-/* === PROGRESS === */
-.prog-track { height: 5px; border-radius: 4px; background: rgba(255,255,255,.08); overflow: hidden; }
-.prog-fill { height: 100%; border-radius: 4px; transition: width 700ms var(--ease-out); box-shadow: inset 0 1px 1px rgba(255,255,255,.3); }
-
-/* === MILESTONE === */
-.ms-row { padding: 14px 0; border-bottom: 1px solid var(--glass-border); }
-.ms-row:last-child { border-bottom: none; }
-.ms-head { display: flex; align-items: center; gap: 12px; margin-bottom: 9px; }
-.ms-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 8px currentColor; }
-.ms-name { font-size: 14px; font-weight: 600; flex: 1; }
-.ms-date { font-size: 11px; color: var(--text-3); font-family: 'IBM Plex Mono', monospace; }
-
-/* === TASK === */
-.task-row {
-  display: flex; align-items: flex-start; gap: 13px;
-  padding: 13px 0; border-bottom: 1px solid var(--glass-border);
-  animation: fadeUp 400ms var(--ease-out) both;
-}
-.task-row:last-child { border-bottom: none; }
-.task-check {
-  width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px;
-  border: 1.5px solid rgba(255,255,255,.25); border-radius: 7px;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: all 180ms var(--ease-spring); background: transparent; padding: 0;
-}
-.task-check:hover { border-color: var(--accent); background: rgba(110,168,255,.15); }
-.task-check.done { background: var(--success); border-color: var(--success); box-shadow: 0 0 12px rgba(74,222,128,.4); }
-.task-check svg { width: 11px; height: 11px; opacity: 0; transition: opacity 150ms; }
-.task-check.done svg { opacity: 1; }
-.task-body { flex: 1; min-width: 0; }
-.task-text { font-size: 14px; font-weight: 500; }
-.task-text.done { text-decoration: line-through; color: var(--text-3); }
-.task-meta { font-size: 11px; color: var(--text-3); font-family: 'IBM Plex Mono', monospace; margin-top: 2px; }
-.chip {
-  font-size: 10px; font-weight: 600; font-family: 'IBM Plex Mono', monospace;
-  padding: 3px 9px; border-radius: 20px; align-self: center; flex-shrink: 0;
-  box-shadow: inset 0 1px 1px rgba(255,255,255,.1);
-}
-.chip-ole { background: rgba(110,168,255,.2); color: #A8C8FF; }
-.chip-kumpel { background: rgba(192,132,252,.2); color: var(--purple); }
-
-/* === BADGES === */
-.badge {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px;
-  font-family: 'IBM Plex Mono', monospace;
-  box-shadow: inset 0 1px 1px rgba(255,255,255,.1);
-}
-.badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-.badge-blue   { background: rgba(110,168,255,.18); color: #A8C8FF; }
-.badge-green  { background: rgba(74,222,128,.16);  color: var(--success); }
-.badge-yellow { background: rgba(251,191,36,.16);  color: var(--warning); }
-.badge-red    { background: rgba(248,113,113,.16); color: var(--danger); }
-.badge-gray   { background: rgba(255,255,255,.08); color: var(--text-2); }
-.badge-purple { background: rgba(192,132,252,.16); color: var(--purple); }
-
-/* === TABLE === */
-.tbl { width: 100%; border-collapse: collapse; }
-.tbl th {
-  text-align: left; font-size: 10px; font-weight: 600;
-  letter-spacing: .8px; text-transform: uppercase; color: var(--text-3);
-  padding: 0 14px 12px; border-bottom: 1px solid var(--glass-border);
-}
-.tbl td { padding: 12px 14px; font-size: 13px; color: var(--text-2); border-bottom: 1px solid var(--glass-border); }
-.tbl tbody tr { transition: background 150ms; cursor: pointer; }
-.tbl tbody tr:hover td { background: rgba(255,255,255,.04); }
-.tbl tbody tr:last-child td { border-bottom: none; }
-.td-name { font-weight: 600; color: var(--text) !important; }
-.td-mono { font-family: 'IBM Plex Mono', monospace; font-size: 11px !important; }
-
-/* === FINANCE === */
-.fin-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 0; border-bottom: 1px solid var(--glass-border); font-size: 14px;
-}
-.fin-row:last-child { border-bottom: none; }
-.fin-label { color: var(--text-2); display: flex; align-items: center; gap: 10px; }
-.fin-dot { width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 6px currentColor; }
-.fin-val { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-variant-numeric: tabular-nums; }
-
-/* === TABS === */
-.tabs { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
-.tab {
-  padding: 8px 15px; border-radius: 12px; font-size: 12px; font-weight: 600;
-  cursor: pointer; color: var(--text-2); border: 1px solid transparent;
-  background: rgba(255,255,255,.04); transition: all 180ms var(--ease-out);
-  min-height: 36px; display: inline-flex; align-items: center; gap: 6px;
-}
-.tab:hover { color: var(--text); background: rgba(255,255,255,.08); }
-.tab.active {
-  color: var(--text); background: rgba(110,168,255,.18);
-  border-color: rgba(110,168,255,.3); box-shadow: inset 0 1px 1px rgba(255,255,255,.15);
-}
-.tab-ct { font-family: 'IBM Plex Mono', monospace; opacity: .6; }
-
-/* === FORM === */
-.input-row { display: flex; gap: 10px; padding-top: 18px; border-top: 1px solid var(--glass-border); margin-top: 16px; }
-input, select {
-  background: rgba(255,255,255,.06); border: 1px solid var(--glass-border);
-  color: var(--text); padding: 10px 13px; border-radius: 11px;
-  font-size: 13px; font-family: 'Inter', sans-serif; outline: none;
-  transition: border-color 180ms, background 180ms; min-height: 40px;
-}
-input:focus, select:focus { border-color: var(--accent); background: rgba(110,168,255,.08); }
-input::placeholder { color: var(--text-3); }
-select option { background: #14161E; }
-.status-sel {
-  background: rgba(255,255,255,.06); border: 1px solid var(--glass-border);
-  color: var(--text-2); padding: 5px 8px; border-radius: 8px;
-  font-size: 11px; font-family: 'IBM Plex Mono', monospace; cursor: pointer; outline: none;
-}
-
-/* === BUTTON === */
-.btn {
-  padding: 10px 18px; border-radius: 11px; font-size: 13px; font-weight: 600;
-  cursor: pointer; border: none; font-family: 'Inter', sans-serif;
-  transition: all 180ms var(--ease-out); min-height: 40px;
-  display: inline-flex; align-items: center; gap: 6px;
-}
-.btn:active { transform: scale(.97); }
-.btn-primary {
-  background: linear-gradient(135deg, #6EA8FF, #5A93FF); color: #06070A;
-  box-shadow: 0 4px 16px rgba(110,168,255,.35), inset 0 1px 1px rgba(255,255,255,.4);
-}
-.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(110,168,255,.45), inset 0 1px 1px rgba(255,255,255,.4); }
-
-/* === ANIMATIONS === */
-@keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-@keyframes slideIn { from{opacity:0;transform:translateX(-16px)} to{opacity:1;transform:translateX(0)} }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-.page { animation: fadeUp 500ms var(--ease-out) both; }
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration:.01ms!important; transition-duration:.01ms!important; }
-}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:translateX(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.page{animation:fadeUp 450ms var(--ease-out) both}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState } = React;
+const { useState, useEffect, useCallback } = React;
 
-/* Background images per page (Unsplash, luxury vibe matching references) */
-const BG = {
-  overview:   "images/yacht-riva.jpg",
-  leads:      "images/dubai-laptop.jpg",
-  tasks:      "images/suit-win.jpg",
-  milestones: "images/yacht-riva.jpg",
-  finance:    "images/finance-quant.jpg",
+// ── SUPABASE CONFIG ──────────────────────────────────────────
+const SB_URL  = "https://jhlxdbnotgamjqbfwcfl.supabase.co";
+const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpobHhkYm5vdGdhbWpxYmZ3Y2ZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMDM3NTEsImV4cCI6MjA5NjU3OTc1MX0.-mty9c6ydSs3fLXsAmVhxozmM1x8Hn19yO4rr0cTrqU";
+
+const sb = {
+  headers: { "apikey": SB_ANON, "Authorization": `Bearer ${SB_ANON}`, "Content-Type": "application/json", "Prefer": "return=representation" },
+  async get(table, params = "") {
+    const r = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, { headers: this.headers });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+  async post(table, body) {
+    const r = await fetch(`${SB_URL}/rest/v1/${table}`, { method: "POST", headers: this.headers, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+  async patch(table, id, body) {
+    const r = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, { method: "PATCH", headers: this.headers, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+  async del(table, id) {
+    const r = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, { method: "DELETE", headers: this.headers });
+    if (!r.ok) throw new Error(await r.text());
+  },
 };
 
-const Icon = ({ d }) => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-       strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d={d}/></svg>
-);
+// ── STATIC FALLBACK DATA ─────────────────────────────────────
+const FALLBACK = {
+  persons: [{id:"1",name:"Ole",color:"blue"},{id:"2",name:"Kumpel",color:"purple"}],
+  leads: [
+    {id:"1",name:"Praxis Mehner",city:"Hamburg",type:"Psychotherapie",status:"angerufen",notes:"Interesse gezeigt"},
+    {id:"2",name:"Dr. Braun",city:"Lüneburg",type:"Privatpraxis",status:"einwilligung",notes:"Mail raus am 05.06"},
+    {id:"3",name:"Praxis Müller",city:"Stade",type:"Psychotherapie",status:"mail_gesendet",notes:"Follow-up 1 Woche"},
+    {id:"4",name:"Zentrum Wedel",city:"Wedel",type:"Gruppenpraxis",status:"offen",notes:""},
+    {id:"5",name:"Dr. Fischer",city:"Buxtehude",type:"Psychotherapie",status:"abgelehnt",notes:"Vertrag bis 2026"},
+    {id:"6",name:"Praxis Vogel",city:"Harburg",type:"Privatpraxis",status:"angerufen",notes:""},
+  ],
+  tasks: [
+    {id:"1",text:"Onboarding-Flow fertigstellen",meta:"Feature",assignee_id:"1",done:false},
+    {id:"2",text:"§7 UWG Leitfaden erstellen",meta:"Akquise",assignee_id:"2",done:true},
+    {id:"3",text:"Datenschutzerklärung aktualisieren",meta:"Legal",assignee_id:"1",done:false},
+    {id:"4",text:"Demo-Video aufnehmen",meta:"Marketing",assignee_id:"1",done:false},
+    {id:"5",text:"Lead-Liste auf 50 erweitern",meta:"Akquise",assignee_id:"2",done:false},
+    {id:"6",text:"Stripe Integration testen",meta:"Tech",assignee_id:"1",done:false},
+  ],
+  milestones: [
+    {id:"1",label:"MVP Live",done:true,progress:100,color:"#4ADE80",target_date:"2025-05-01"},
+    {id:"2",label:"Marketing-Website",done:true,progress:100,color:"#4ADE80",target_date:"2025-06-01"},
+    {id:"3",label:"Erste 5 Leads kontaktiert",done:false,progress:60,color:"#FBBf24",target_date:null},
+    {id:"4",label:"Erster Kunde",done:false,progress:15,color:"#6EA8FF",target_date:"2025-07-01"},
+    {id:"5",label:"10 aktive Praxen",done:false,progress:0,color:"#C084FC",target_date:"2025-10-01"},
+    {id:"6",label:"Breakeven",done:false,progress:0,color:"#9CA3AF",target_date:"2026-01-01"},
+  ],
+  finance_costs: [
+    {id:"1",label:"Strato Server",amount:10},{id:"2",label:"OpenAI API",amount:20},
+    {id:"3",label:"Domain & SSL",amount:2},{id:"4",label:"Tools & SaaS",amount:30},
+  ],
+  finance_scenarios: [
+    {id:"1",label:"1 Kunde",customers:1,mrr:99,color:"#F87171"},
+    {id:"2",label:"3 Kunden",customers:3,mrr:297,color:"#FBBf24"},
+    {id:"3",label:"5 Kunden (Break-even)",customers:5,mrr:495,color:"#4ADE80"},
+    {id:"4",label:"10 Kunden",customers:10,mrr:990,color:"#6EA8FF"},
+    {id:"5",label:"20 Kunden",customers:20,mrr:1980,color:"#C084FC"},
+  ],
+};
+
+// ── ICONS ────────────────────────────────────────────────────
 const ic = {
   overview:"M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10",
   leads:"M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
@@ -383,34 +249,21 @@ const ic = {
   milestones:"M12 22V12 M12 7V2 M2 18h20 M4 22h16",
   finance:"M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6",
   check:"M20 6L9 17l-5-5",
+  plus:"M12 5v14 M5 12h14",
+};
+const Icon = ({d,size=16,color="currentColor"}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+    strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={d}/></svg>
+);
+
+const BG = {
+  overview:   "https://images.unsplash.com/photo-1567899378494-47b22a2ae96a?w=1920&q=80",
+  leads:      "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=1920&q=80",
+  tasks:      "https://images.unsplash.com/photo-1493962853295-0fd70327578a?w=1920&q=80",
+  milestones: "https://images.unsplash.com/photo-1614200187524-dc4b892acf16?w=1920&q=80",
+  finance:    "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=1920&q=80",
 };
 
-const INITIAL_LEADS = [
-  {id:1,name:"Praxis Mehner",city:"Hamburg",type:"Psychotherapie",status:"angerufen",notes:"Interesse gezeigt, Mail folgt"},
-  {id:2,name:"Dr. Braun",city:"Lüneburg",type:"Privatpraxis",status:"einwilligung",notes:"Mail raus am 05.06"},
-  {id:3,name:"Praxis Müller",city:"Stade",type:"Psychotherapie",status:"mail_gesendet",notes:"Follow-up in 1 Woche"},
-  {id:4,name:"Zentrum Wedel",city:"Wedel",type:"Gruppenpraxis",status:"offen",notes:""},
-  {id:5,name:"Dr. Fischer",city:"Buxtehude",type:"Psychotherapie",status:"abgelehnt",notes:"Hat Vertrag bis 2026"},
-  {id:6,name:"Praxis Vogel",city:"Harburg",type:"Privatpraxis",status:"angerufen",notes:""},
-];
-const INITIAL_TASKS = [
-  {id:1,text:"Onboarding-Flow fertigstellen",meta:"Practio · Feature",assignee:"Ole",done:false},
-  {id:2,text:"§7 UWG Telefonleitfaden erstellen",meta:"Akquise · Doku",assignee:"Kumpel",done:true},
-  {id:3,text:"Datenschutzerklärung aktualisieren",meta:"Legal · Prio hoch",assignee:"Ole",done:false},
-  {id:4,text:"Demo-Video aufnehmen",meta:"Marketing",assignee:"Ole",done:false},
-  {id:5,text:"Lead-Liste auf 50 erweitern",meta:"Akquise",assignee:"Kumpel",done:false},
-  {id:6,text:"E-Mail-Vorlage finalisieren",meta:"Akquise",assignee:"Kumpel",done:true},
-  {id:7,text:"Stripe Integration testen",meta:"Practio · Tech",assignee:"Ole",done:false},
-  {id:8,text:"Servermonitoring einrichten",meta:"Infra",assignee:"Ole",done:false},
-];
-const MILESTONES = [
-  {label:"MVP Live",date:"✓ Mai 2025",done:true,color:"#4ADE80",pct:100},
-  {label:"Marketing-Website",date:"✓ Jun 2025",done:true,color:"#4ADE80",pct:100},
-  {label:"Erste 5 Leads kontaktiert",date:"laufend",done:false,color:"#FBBf24",pct:60},
-  {label:"Erster Kunde",date:"Ziel: Jul 2025",done:false,color:"#6EA8FF",pct:15},
-  {label:"10 aktive Praxen",date:"Ziel: Okt 2025",done:false,color:"#C084FC",pct:0},
-  {label:"Breakeven",date:"Ziel: Q1 2026",done:false,color:"#9CA3AF",pct:0},
-];
 const STATUS = {
   offen:{label:"Offen",cls:"badge-gray"}, angerufen:{label:"Angerufen",cls:"badge-yellow"},
   einwilligung:{label:"Einwilligung",cls:"badge-blue"}, mail_gesendet:{label:"Mail gesendet",cls:"badge-blue"},
@@ -424,13 +277,28 @@ const NAV = [
   {id:"milestones",label:"Meilensteine",icon:ic.milestones},
   {id:"finance",label:"Finanzen",icon:ic.finance},
 ];
+const COL_COLORS = ["badge-blue","badge-purple","badge-green","badge-yellow","badge-red"];
 
+// ── DB STATUS BANNER ─────────────────────────────────────────
+function DbBanner({status}) {
+  if (status === "ok") return (
+    <div className="db-banner db-ok"><span>●</span> Supabase verbunden — Live-Daten</div>
+  );
+  if (status === "loading") return (
+    <div className="db-banner db-loading"><div className="spinner"/> Verbinde mit Supabase…</div>
+  );
+  return (
+    <div className="db-banner db-error"><span>⚠</span> Supabase nicht erreichbar — Schema noch nicht deployed? Lokale Daten werden angezeigt.</div>
+  );
+}
+
+// ── STAT CARD ────────────────────────────────────────────────
 function StatCard({name,value,cap,color,icon,delay}) {
   return (
     <div className="glass stat-card" style={{animationDelay:delay}}>
       <div className="stat-top">
         <span className="stat-name">{name}</span>
-        <div className="stat-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={icon}/></svg></div>
+        <Icon d={icon} size={14} color={color}/>
       </div>
       <div className="stat-big" style={{color}}>{value}</div>
       <div className="stat-cap">{cap}</div>
@@ -438,28 +306,15 @@ function StatCard({name,value,cap,color,icon,delay}) {
   );
 }
 
-function Task({t,onToggle,delay}) {
-  return (
-    <div className="task-row" style={{animationDelay:delay}}>
-      <button className={`task-check ${t.done?"done":""}`} onClick={()=>onToggle(t.id)} aria-label={t.done?"Offen":"Erledigt"}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="#06070A" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d={ic.check}/></svg>
-      </button>
-      <div className="task-body">
-        <div className={`task-text ${t.done?"done":""}`}>{t.text}</div>
-        <div className="task-meta">{t.meta}</div>
-      </div>
-      <span className={`chip ${t.assignee==="Ole"?"chip-ole":"chip-kumpel"}`}>{t.assignee}</span>
-    </div>
-  );
-}
-
-function Overview({leads,tasks,onToggle}) {
+// ── OVERVIEW ─────────────────────────────────────────────────
+function Overview({leads,tasks,persons,dbStatus}) {
   const s = {
-    total:leads.length,
-    contacted:leads.filter(l=>l.status!=="offen").length,
-    consented:leads.filter(l=>["einwilligung","mail_gesendet","abgeschlossen"].includes(l.status)).length,
-    won:leads.filter(l=>l.status==="abgeschlossen").length,
-    open:tasks.filter(t=>!t.done).length, done:tasks.filter(t=>t.done).length,
+    total: leads.length,
+    contacted: leads.filter(l=>l.status!=="offen").length,
+    consented: leads.filter(l=>["einwilligung","mail_gesendet","abgeschlossen"].includes(l.status)).length,
+    won: leads.filter(l=>l.status==="abgeschlossen").length,
+    open: tasks.filter(t=>!t.done).length,
+    done: tasks.filter(t=>t.done).length,
   };
   const funnel=[
     {label:"Leads",count:leads.length,color:"#6EA8FF"},
@@ -470,12 +325,10 @@ function Overview({leads,tasks,onToggle}) {
   return (
     <div className="page">
       <div className="page-head">
-        <div>
-          <h1 className="page-title">Über<em>sicht</em></h1>
-          <p className="page-sub">Practio · Go-to-Market Status</p>
-        </div>
+        <div><h1 className="page-title">Über<em>sicht</em></h1><p className="page-sub">Practio · Go-to-Market Status</p></div>
         <div className="head-pill"><span className="live-dot"></span> Live · Stand heute</div>
       </div>
+      <DbBanner status={dbStatus}/>
       <div className="stat-grid">
         <StatCard name="Leads gesamt" value={s.total} cap={`→ ${s.contacted} kontaktiert`} color="#6EA8FF" icon={ic.leads} delay="60ms"/>
         <StatCard name="Einwilligungen" value={s.consented} cap={`→ ${s.won} gewonnen`} color="#FBBf24" icon={ic.overview} delay="110ms"/>
@@ -489,51 +342,56 @@ function Overview({leads,tasks,onToggle}) {
             {funnel.map((r,i)=>(
               <div className="funnel-row" key={i}>
                 <span className="funnel-label">{r.label}</span>
-                <div className="funnel-track"><div className="funnel-fill" style={{width:`${(r.count/leads.length)*100}%`,background:r.color}}>{r.count>0&&r.count}</div></div>
+                <div className="funnel-track"><div className="funnel-fill" style={{width:leads.length?`${(r.count/leads.length)*100}%`:"0%",background:r.color}}>{r.count>0&&r.count}</div></div>
                 <span className="funnel-num">{r.count}</span>
               </div>
             ))}
           </div>
         </div>
         <div className="glass card" style={{animationDelay:"280ms"}}>
-          <div className="card-head"><span className="card-title">Nächste Meilensteine</span></div>
+          <div className="card-head"><span className="card-title">Tasks pro Person</span></div>
           <div className="card-body">
-            {MILESTONES.filter(m=>!m.done).slice(0,4).map((m,i)=>(
-              <div className="ms-row" key={i} style={{padding:"10px 0"}}>
-                <div className="ms-head">
-                  <div className="ms-dot" style={{background:m.color,color:m.color}}></div>
-                  <span className="ms-name">{m.label}</span>
-                  <span className="ms-date">{m.date}</span>
-                </div>
-                <div className="prog-track"><div className="prog-fill" style={{width:`${m.pct}%`,background:m.color}}></div></div>
+            {persons.map((p,i)=>(
+              <div key={p.id} style={{display:"flex",alignItems:"center",gap:12,padding:"8px 0",borderBottom:i<persons.length-1?"1px solid rgba(255,255,255,.05)":"none"}}>
+                <div className="avatar">{p.name[0]}</div>
+                <span style={{fontSize:13,fontWeight:600,flex:1}}>{p.name}</span>
+                <span className={`badge ${COL_COLORS[i%COL_COLORS.length]}`}>{tasks.filter(t=>t.assignee_id===p.id&&!t.done).length} offen</span>
               </div>
             ))}
           </div>
-        </div>
-      </div>
-      <div className="glass card" style={{animationDelay:"320ms"}}>
-        <div className="card-head"><span className="card-title">Offene Tasks</span></div>
-        <div className="card-body" style={{paddingTop:"6px",paddingBottom:"6px"}}>
-          {tasks.filter(t=>!t.done).slice(0,5).map((t,i)=>(<Task key={t.id} t={t} onToggle={onToggle} delay={`${i*40}ms`}/>))}
         </div>
       </div>
     </div>
   );
 }
 
-function Leads({leads,setLeads}) {
+// ── LEADS ────────────────────────────────────────────────────
+function Leads({leads,setLeads,dbStatus}) {
   const [filter,setFilter]=useState("alle");
   const [nl,setNl]=useState({name:"",city:"",type:"Psychotherapie"});
   const filtered=filter==="alle"?leads:leads.filter(l=>l.status===filter);
-  const add=()=>{ if(!nl.name.trim())return; setLeads(ls=>[...ls,{...nl,id:Date.now(),status:"offen",notes:""}]); setNl({name:"",city:"",type:"Psychotherapie"}); };
-  const filters=["alle","offen","angerufen","einwilligung","mail_gesendet","abgeschlossen","abgelehnt"];
+
+  const add=async()=>{
+    if(!nl.name.trim())return;
+    const row={...nl,status:"offen",notes:""};
+    if(dbStatus==="ok"){
+      try{ const [r]=await sb.post("leads",row); setLeads(ls=>[...ls,r]); }
+      catch{ setLeads(ls=>[...ls,{...row,id:Date.now().toString()}]); }
+    } else { setLeads(ls=>[...ls,{...row,id:Date.now().toString()}]); }
+    setNl({name:"",city:"",type:"Psychotherapie"});
+  };
+
+  const updateStatus=async(id,status)=>{
+    setLeads(ls=>ls.map(l=>l.id===id?{...l,status}:l));
+    if(dbStatus==="ok") try{ await sb.patch("leads",id,{status}); }catch{}
+  };
+
   return (
     <div className="page">
-      <div className="page-head">
-        <div><h1 className="page-title">Le<em>ads</em></h1><p className="page-sub">{leads.length} Praxen · Norddeutschland</p></div>
-      </div>
+      <div className="page-head"><div><h1 className="page-title">Le<em>ads</em></h1><p className="page-sub">{leads.length} Praxen · Norddeutschland</p></div></div>
+      <DbBanner status={dbStatus}/>
       <div className="tabs">
-        {filters.map(f=>(
+        {["alle","offen","angerufen","einwilligung","mail_gesendet","abgeschlossen","abgelehnt"].map(f=>(
           <button key={f} className={`tab ${filter===f?"active":""}`} onClick={()=>setFilter(f)}>
             {f==="alle"?"Alle":STATUS[f]?.label||f}
             <span className="tab-ct">{f==="alle"?leads.length:leads.filter(l=>l.status===f).length}</span>
@@ -541,7 +399,7 @@ function Leads({leads,setLeads}) {
         ))}
       </div>
       <div className="glass card">
-        <div style={{padding:"8px 8px 0"}}>
+        <div style={{padding:"6px 6px 0"}}>
           <table className="tbl">
             <thead><tr><th>Praxis</th><th>Ort</th><th>Typ</th><th>Status</th><th>Notiz</th><th>Aktion</th></tr></thead>
             <tbody>
@@ -551,18 +409,16 @@ function Leads({leads,setLeads}) {
                   <td>{l.city}</td>
                   <td className="td-mono">{l.type}</td>
                   <td><span className={`badge ${STATUS[l.status]?.cls||"badge-gray"}`}>{STATUS[l.status]?.label||l.status}</span></td>
-                  <td style={{maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.notes||<span style={{color:"var(--text-3)"}}>—</span>}</td>
-                  <td>
-                    <select className="status-sel" value={l.status} onChange={e=>setLeads(ls=>ls.map(x=>x.id===l.id?{...x,status:e.target.value}:x))}>
-                      {Object.entries(STATUS).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
-                    </select>
-                  </td>
+                  <td style={{maxWidth:150,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.notes||<span style={{color:"var(--text-3)"}}>—</span>}</td>
+                  <td><select className="status-sel" value={l.status} onChange={e=>updateStatus(l.id,e.target.value)}>
+                    {Object.entries(STATUS).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+                  </select></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <div style={{padding:"0 22px 20px"}}>
+        <div style={{padding:"0 20px 18px"}}>
           <div className="input-row">
             <input placeholder="Praxisname" value={nl.name} onChange={e=>setNl({...nl,name:e.target.value})} onKeyDown={e=>e.key==="Enter"&&add()} style={{flex:2}}/>
             <input placeholder="Ort" value={nl.city} onChange={e=>setNl({...nl,city:e.target.value})} style={{flex:1}}/>
@@ -575,103 +431,117 @@ function Leads({leads,setLeads}) {
   );
 }
 
-function Tasks({tasks,setTasks}) {
-  const [nt,setNt]=useState({text:"",meta:"",assignee:"Ole"});
-  const [persons,setPersons]=useState(["Ole","Kumpel"]);
-  const [newPerson,setNewPerson]=useState("");
+// ── TASKS (MULTI-PERSON LISTS) ───────────────────────────────
+function Tasks({tasks,setTasks,persons,setPersons,dbStatus}) {
   const [addingPerson,setAddingPerson]=useState(false);
-  const toggle=id=>setTasks(ts=>ts.map(t=>t.id===id?{...t,done:!t.done}:t));
-  const del=id=>setTasks(ts=>ts.filter(t=>t.id!==id));
-  const add=()=>{ if(!nt.text.trim())return; setTasks(ts=>[...ts,{...nt,id:Date.now(),done:false}]); setNt({...nt,text:"",meta:""}); };
-  const addPerson=()=>{ if(!newPerson.trim())return; setPersons(ps=>[...ps,newPerson.trim()]); setNewPerson(""); setAddingPerson(false); setNt(n=>({...n,assignee:newPerson.trim()})); };
+  const [newPersonName,setNewPersonName]=useState("");
+
+  const toggle=async(id)=>{
+    const t=tasks.find(x=>x.id===id);
+    setTasks(ts=>ts.map(x=>x.id===id?{...x,done:!x.done}:x));
+    if(dbStatus==="ok") try{ await sb.patch("tasks",id,{done:!t.done}); }catch{}
+  };
+
+  const del=async(id)=>{
+    setTasks(ts=>ts.filter(x=>x.id!==id));
+    if(dbStatus==="ok") try{ await sb.del("tasks",id); }catch{}
+  };
+
+  const addTask=async(text,assignee_id)=>{
+    if(!text.trim())return;
+    const row={text:text.trim(),meta:"",assignee_id,done:false,priority:"medium"};
+    if(dbStatus==="ok"){
+      try{ const [r]=await sb.post("tasks",row); setTasks(ts=>[...ts,r]); return; }catch{}
+    }
+    setTasks(ts=>[...ts,{...row,id:Date.now().toString()}]);
+  };
+
+  const addPerson=async()=>{
+    if(!newPersonName.trim())return;
+    const row={name:newPersonName.trim(),color:"blue"};
+    if(dbStatus==="ok"){
+      try{ const [r]=await sb.post("persons",row); setPersons(ps=>[...ps,r]); setNewPersonName(""); setAddingPerson(false); return; }catch{}
+    }
+    setPersons(ps=>[...ps,{...row,id:Date.now().toString()}]);
+    setNewPersonName(""); setAddingPerson(false);
+  };
+
   return (
     <div className="page">
       <div className="page-head">
         <div><h1 className="page-title">Ta<em>sks</em></h1><p className="page-sub">{tasks.filter(t=>!t.done).length} offen · {tasks.filter(t=>t.done).length} erledigt</p></div>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          {addingPerson?(
-            <div style={{display:"flex",gap:8}}>
-              <input autoFocus placeholder="Name…" value={newPerson} onChange={e=>setNewPerson(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addPerson();if(e.key==="Escape")setAddingPerson(false);}} style={{width:130}}/>
-              <button className="btn btn-primary" onClick={addPerson}>OK</button>
-              <button className="btn" style={{background:"rgba(255,255,255,.06)",color:"var(--text-2)",border:"1px solid var(--glass-border)"}} onClick={()=>setAddingPerson(false)}>✕</button>
-            </div>
-          ):(
-            <button className="btn" style={{background:"rgba(255,255,255,.06)",color:"var(--text-2)",border:"1px solid var(--glass-border)"}} onClick={()=>setAddingPerson(true)}>+ Person</button>
-          )}
-        </div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:`repeat(${persons.length},1fr)`,gap:16,marginBottom:20}}>
-        {persons.map((p,pi)=>{
-          const colors=["badge-blue","badge-purple","badge-green","badge-yellow","badge-red"];
-          const cls=colors[pi%colors.length];
-          return (
-            <div className="glass card" key={p} style={{display:"flex",flexDirection:"column"}}>
-              <div className="card-head" style={{justifyContent:"space-between"}}>
-                <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <div style={{width:28,height:28,borderRadius:"50%",background:"rgba(255,255,255,.08)",border:"1px solid var(--glass-border)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"var(--text)"}}>{p[0]}</div>
-                  <span className="card-title">{p}</span>
-                </div>
-                <span className={`badge ${cls}`}>{tasks.filter(t=>t.assignee===p&&!t.done).length} offen</span>
-              </div>
-              <div className="card-body" style={{paddingTop:6,paddingBottom:6,flex:1}}>
-                {tasks.filter(t=>t.assignee===p).length===0&&(
-                  <div style={{textAlign:"center",padding:"24px 0",color:"var(--text-3)",fontSize:12,fontFamily:"'IBM Plex Mono',monospace"}}>Keine Tasks</div>
-                )}
-                {tasks.filter(t=>t.assignee===p).map((t,i)=>(
-                  <div className="task-row" key={t.id} style={{animationDelay:`${i*40}ms`}}>
-                    <button className={`task-check ${t.done?"done":""}`} onClick={()=>toggle(t.id)} aria-label={t.done?"Offen":"Erledigt"}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#06070A" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d={ic.check}/></svg>
-                    </button>
-                    <div className="task-body">
-                      <div className={`task-text ${t.done?"done":""}`}>{t.text}</div>
-                      <div className="task-meta">{t.meta}</div>
-                    </div>
-                    <button onClick={()=>del(t.id)} style={{background:"none",border:"none",color:"var(--text-3)",cursor:"pointer",padding:"4px 6px",fontSize:14,lineHeight:1,transition:"color 150ms"}} onMouseOver={e=>e.target.style.color="var(--danger)"} onMouseOut={e=>e.target.style.color="var(--text-3)"} aria-label="Löschen">✕</button>
-                  </div>
-                ))}
-              </div>
-              <div style={{padding:"0 16px 14px"}}>
-                <div style={{display:"flex",gap:6,borderTop:"1px solid var(--glass-border)",paddingTop:12}}>
-                  <input placeholder="Neue Aufgabe…" style={{flex:1,fontSize:12}} onKeyDown={e=>{if(e.key==="Enter"&&e.target.value.trim()){setTasks(ts=>[...ts,{id:Date.now(),text:e.target.value.trim(),meta:"",assignee:p,done:false}]);e.target.value="";}}}/>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="glass card">
-        <div className="card-head"><span className="card-title">Task hinzufügen</span></div>
-        <div style={{padding:"0 22px 20px"}}>
-          <div className="input-row" style={{borderTop:"none",paddingTop:16}}>
-            <input placeholder="Aufgabe beschreiben…" value={nt.text} onChange={e=>setNt({...nt,text:e.target.value})} onKeyDown={e=>e.key==="Enter"&&add()} style={{flex:3}}/>
-            <input placeholder="Kategorie" value={nt.meta} onChange={e=>setNt({...nt,meta:e.target.value})} style={{flex:1}}/>
-            <select value={nt.assignee} onChange={e=>setNt({...nt,assignee:e.target.value})}>
-              {persons.map(p=><option key={p} value={p}>{p}</option>)}
-            </select>
-            <button className="btn btn-primary" onClick={add}>+ Task</button>
+        {addingPerson?(
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <input autoFocus placeholder="Name…" value={newPersonName} onChange={e=>setNewPersonName(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addPerson();if(e.key==="Escape")setAddingPerson(false);}} style={{width:130}}/>
+            <button className="btn btn-primary" onClick={addPerson}>OK</button>
+            <button className="btn btn-ghost" onClick={()=>setAddingPerson(false)}>✕</button>
           </div>
-        </div>
+        ):(
+          <button className="btn btn-ghost" onClick={()=>setAddingPerson(true)}><Icon d={ic.plus} size={14}/> Person</button>
+        )}
+      </div>
+      <DbBanner status={dbStatus}/>
+      <div className="tasks-board">
+        {persons.map((p,pi)=>(
+          <div className="glass task-col" key={p.id}>
+            <div className="task-col-head">
+              <div className="task-col-name">
+                <div className="avatar">{p.name[0]}</div>
+                <span className="task-col-title">{p.name}</span>
+              </div>
+              <span className={`badge ${COL_COLORS[pi%COL_COLORS.length]}`}>
+                {tasks.filter(t=>t.assignee_id===p.id&&!t.done).length}
+              </span>
+            </div>
+            <div className="task-col-body">
+              {tasks.filter(t=>t.assignee_id===p.id).length===0
+                ? <div className="task-col-empty">Keine Tasks</div>
+                : tasks.filter(t=>t.assignee_id===p.id).map((t,i)=>(
+                    <div className="task-row" key={t.id} style={{animationDelay:`${i*35}ms`}}>
+                      <button className={`task-check ${t.done?"done":""}`} onClick={()=>toggle(t.id)}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#06070A" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d={ic.check}/></svg>
+                      </button>
+                      <div className="task-body">
+                        <div className={`task-text ${t.done?"done":""}`}>{t.text}</div>
+                        {t.meta&&<div className="task-meta">{t.meta}</div>}
+                      </div>
+                      <button className="task-del" onClick={()=>del(t.id)}>✕</button>
+                    </div>
+                  ))
+              }
+            </div>
+            <div className="task-col-input">
+              <input placeholder="+ Aufgabe hinzufügen…"
+                onKeyDown={e=>{if(e.key==="Enter"&&e.target.value.trim()){addTask(e.target.value,p.id);e.target.value="";}}}/>
+            </div>
+          </div>
+        ))}
+        <button className="add-col-btn" onClick={()=>setAddingPerson(true)}>
+          <Icon d={ic.plus} size={18}/> Person hinzufügen
+        </button>
       </div>
     </div>
   );
 }
 
-function Milestones() {
+// ── MILESTONES ───────────────────────────────────────────────
+function Milestones({milestones,dbStatus}) {
   return (
     <div className="page">
       <div className="page-head"><div><h1 className="page-title">Meilen<em>steine</em></h1><p className="page-sub">Practio Roadmap 2025–2026</p></div></div>
+      <DbBanner status={dbStatus}/>
       <div className="glass card">
         <div className="card-body">
-          {MILESTONES.map((m,i)=>(
-            <div className="ms-row" key={i} style={{animationDelay:`${i*50}ms`}}>
+          {milestones.map((m,i)=>(
+            <div className="ms-row" key={m.id} style={{animation:`fadeUp 300ms var(--ease-out) ${i*50}ms both`}}>
               <div className="ms-head">
-                <div className="ms-dot" style={{background:m.color,color:m.color}}></div>
+                <div className="ms-dot" style={{background:m.color}}></div>
                 <span className="ms-name">{m.label}</span>
                 {m.done&&<span className="badge badge-green">Done</span>}
-                <span className="ms-date">{m.date}</span>
+                <span className="ms-date">{m.target_date||"laufend"}</span>
               </div>
-              <div className="prog-track"><div className="prog-fill" style={{width:`${m.pct}%`,background:m.color}}></div></div>
-              <div style={{fontSize:11,color:"var(--text-3)",fontFamily:"'IBM Plex Mono',monospace",marginTop:6}}>{m.pct}% abgeschlossen</div>
+              <div className="prog-track"><div className="prog-fill" style={{width:`${m.progress}%`,background:m.color}}></div></div>
+              <div style={{fontSize:10,color:"var(--text-3)",fontFamily:"'IBM Plex Mono',monospace",marginTop:5}}>{m.progress}% abgeschlossen</div>
             </div>
           ))}
         </div>
@@ -680,42 +550,37 @@ function Milestones() {
   );
 }
 
-function Finance() {
-  const costs=[{label:"Strato Server",value:"~€10"},{label:"OpenAI API",value:"~€20"},{label:"Domain & SSL",value:"~€2"},{label:"Tools & SaaS",value:"~€30"}];
-  const scen=[
-    {label:"1 Kunde",value:"€99 / Mo.",color:"#F87171"},
-    {label:"3 Kunden",value:"€297 / Mo.",color:"#FBBf24"},
-    {label:"5 Kunden (Break-even)",value:"€495 / Mo.",color:"#4ADE80"},
-    {label:"10 Kunden",value:"€990 / Mo.",color:"#6EA8FF"},
-    {label:"20 Kunden",value:"€1.980 / Mo.",color:"#C084FC"},
-  ];
+// ── FINANCE ──────────────────────────────────────────────────
+function Finance({costs,scenarios,dbStatus}) {
+  const total=costs.reduce((s,c)=>s+parseFloat(c.amount||0),0);
   return (
     <div className="page">
       <div className="page-head"><div><h1 className="page-title">Finan<em>zen</em></h1><p className="page-sub">Umsatzziele & Planung</p></div></div>
+      <DbBanner status={dbStatus}/>
       <div className="stat-grid">
         <StatCard name="MRR Aktuell" value="€0" cap="0 Kunden" color="#9CA3AF" icon={ic.finance} delay="60ms"/>
         <StatCard name="MRR Ziel Q3" value="€500" cap="~5 Kunden à €99" color="#FBBf24" icon={ic.finance} delay="110ms"/>
-        <StatCard name="Break-even" value="€200" cap="Server + Tools/Mo." color="#6EA8FF" icon={ic.finance} delay="160ms"/>
+        <StatCard name="Break-even" value={`€${total}`} cap="Server + Tools/Mo." color="#6EA8FF" icon={ic.finance} delay="160ms"/>
         <StatCard name="Preis/Praxis" value="€99" cap="Monatlich, kündbar" color="#4ADE80" icon={ic.finance} delay="210ms"/>
       </div>
       <div className="grid-2">
         <div className="glass card" style={{animationDelay:"240ms"}}>
           <div className="card-head"><span className="card-title">Kosten (monatlich)</span></div>
           <div className="card-body">
-            {costs.map((r,i)=>(<div className="fin-row" key={i}><span className="fin-label">{r.label}</span><span className="fin-val">{r.value}</span></div>))}
-            <div className="fin-row" style={{borderTop:"1px solid var(--glass-border-strong)",marginTop:8,paddingTop:12,borderBottom:"none"}}>
+            {costs.map((r,i)=>(<div className="fin-row" key={r.id||i}><span className="fin-label">{r.label}</span><span className="fin-val">€{parseFloat(r.amount).toFixed(0)}</span></div>))}
+            <div className="fin-row" style={{borderTop:"1px solid rgba(255,255,255,.12)",marginTop:8,paddingTop:12,borderBottom:"none"}}>
               <span className="fin-label" style={{color:"var(--text)",fontWeight:600}}>Gesamt</span>
-              <span className="fin-val" style={{color:"var(--text)"}}>~€62</span>
+              <span className="fin-val" style={{color:"var(--text)"}}>€{total.toFixed(0)}</span>
             </div>
           </div>
         </div>
         <div className="glass card" style={{animationDelay:"280ms"}}>
           <div className="card-head"><span className="card-title">Umsatz-Szenarien</span></div>
           <div className="card-body">
-            {scen.map((r,i)=>(
-              <div className="fin-row" key={i}>
-                <span className="fin-label"><span className="fin-dot" style={{background:r.color,color:r.color}}></span>{r.label}</span>
-                <span className="fin-val" style={{color:r.color}}>{r.value}</span>
+            {scenarios.map((r,i)=>(
+              <div className="fin-row" key={r.id||i}>
+                <span className="fin-label"><span className="fin-dot" style={{background:r.color}}></span>{r.label}</span>
+                <span className="fin-val" style={{color:r.color}}>€{parseFloat(r.mrr).toFixed(0)}/Mo.</span>
               </div>
             ))}
           </div>
@@ -725,11 +590,36 @@ function Finance() {
   );
 }
 
+// ── APP ──────────────────────────────────────────────────────
 function App() {
   const [page,setPage]=useState("overview");
-  const [leads,setLeads]=useState(INITIAL_LEADS);
-  const [tasks,setTasks]=useState(INITIAL_TASKS);
-  const toggle=id=>setTasks(ts=>ts.map(t=>t.id===id?{...t,done:!t.done}:t));
+  const [dbStatus,setDbStatus]=useState("loading");
+
+  const [persons,setPersons]   = useState(FALLBACK.persons);
+  const [leads,setLeads]       = useState(FALLBACK.leads);
+  const [tasks,setTasks]       = useState(FALLBACK.tasks);
+  const [milestones]           = useState(FALLBACK.milestones);
+  const [costs]                = useState(FALLBACK.finance_costs);
+  const [scenarios]            = useState(FALLBACK.finance_scenarios);
+
+  useEffect(()=>{
+    (async()=>{
+      try {
+        const [p,l,t] = await Promise.all([
+          sb.get("persons","order=created_at.asc"),
+          sb.get("leads","order=created_at.asc"),
+          sb.get("tasks","order=created_at.asc"),
+        ]);
+        setPersons(p.length ? p : FALLBACK.persons);
+        setLeads(l.length ? l : FALLBACK.leads);
+        setTasks(t.length ? t : FALLBACK.tasks);
+        setDbStatus("ok");
+      } catch {
+        setDbStatus("error");
+      }
+    })();
+  },[]);
+
   const open=tasks.filter(t=>!t.done).length;
 
   return (
@@ -738,14 +628,11 @@ function App() {
         <div key={key} className={`bg-layer ${page===key?"active":"inactive"}`} style={{backgroundImage:`url('${url}')`}}/>
       ))}
       <div className="bg-overlay"/>
-
       <div className="app">
         <nav className="sidebar" role="navigation" aria-label="Hauptnavigation">
-          <div className="sidebar-logo">
-            <div className="logo-row">
-              <div className="logo-mark">P</div>
-              <div><div className="logo-name">Practio</div><div className="logo-meta">intern · v0.1</div></div>
-            </div>
+          <div className="logo-row">
+            <div className="logo-mark">P</div>
+            <div><div className="logo-name">Practio</div><div className="logo-meta">intern · v0.1</div></div>
           </div>
           <div className="nav-label">Navigation</div>
           {NAV.map(item=>(
@@ -758,13 +645,12 @@ function App() {
           ))}
           <div className="sidebar-foot">„Schweigepflicht beginnt bei der Software"</div>
         </nav>
-
         <main className="main" role="main">
-          {page==="overview"&&<Overview leads={leads} tasks={tasks} onToggle={toggle}/>}
-          {page==="leads"&&<Leads leads={leads} setLeads={setLeads}/>}
-          {page==="tasks"&&<Tasks tasks={tasks} setTasks={setTasks}/>}
-          {page==="milestones"&&<Milestones/>}
-          {page==="finance"&&<Finance/>}
+          {page==="overview"   && <Overview    leads={leads} tasks={tasks} persons={persons} dbStatus={dbStatus}/>}
+          {page==="leads"      && <Leads       leads={leads} setLeads={setLeads} dbStatus={dbStatus}/>}
+          {page==="tasks"      && <Tasks       tasks={tasks} setTasks={setTasks} persons={persons} setPersons={setPersons} dbStatus={dbStatus}/>}
+          {page==="milestones" && <Milestones  milestones={milestones} dbStatus={dbStatus}/>}
+          {page==="finance"    && <Finance     costs={costs} scenarios={scenarios} dbStatus={dbStatus}/>}
         </main>
       </div>
     </>
