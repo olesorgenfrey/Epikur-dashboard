@@ -46,8 +46,8 @@ body {
 /* === BACKGROUND IMAGE LAYER (changes per page) === */
 .bg-layer {
   position: fixed; inset: 0; z-index: 0;
-  background-size: contain; background-position: center; background-repeat: no-repeat;
-  transition: opacity 800ms var(--ease-out), transform 1200ms var(--ease-out);
+  background-size: cover; background-position: center;
+  transition: opacity 800ms var(--ease-out);
 }
 .bg-layer.active { opacity: 1; }
 .bg-layer.inactive { opacity: 0; }
