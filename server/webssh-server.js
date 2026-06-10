@@ -32,6 +32,21 @@ const PROJECTS = {
     service: 'epikur-patient-preview.service',
     previewUrl: 'https://dashboard.praxis-sorgenfrey.de:8444',
   },
+  'epikur-dashboard': {
+    id: 'epikur-dashboard',
+    label: 'Epikur Dashboard',
+    repo: '/home/ole/epikur-workspaces/epikur-dashboard',
+  },
+  'epikur-produkt': {
+    id: 'epikur-produkt',
+    label: 'Epikur Produkt',
+    repo: '/home/ole/epikur-workspaces/epikur-produkt',
+  },
+  'epikur-werbung': {
+    id: 'epikur-werbung',
+    label: 'Epikur Werbung',
+    repo: '/home/ole/epikur-workspaces/epikur-werbung',
+  },
 };
 
 function getProject(id) {
@@ -165,20 +180,33 @@ app.get('/api/claude/status', requireApiAuth, (req, res) => {
 });
 
 app.get('/api/claude/projects', requireApiAuth, (req, res) => {
-  res.json(Object.values(PROJECTS).map(({ id, label, previewUrl }) => ({ id, label, previewUrl })));
+  res.json(Object.values(PROJECTS).map(({ id, label, previewUrl }) => ({
+    id,
+    label,
+    previewUrl: previewUrl || null,
+    hasPreview: Boolean(previewUrl),
+  })));
 });
 
 app.post('/api/claude/projects/:id/activate', requireApiAuth, (req, res) => {
   const project = PROJECTS[req.params.id];
   if (!project) return res.status(404).json({ error: 'Projekt nicht gefunden.' });
-  const services = Object.values(PROJECTS).map((entry) => entry.service);
+  const services = Object.values(PROJECTS).map((entry) => entry.service).filter(Boolean);
   const command = [
     ...services.filter((service) => service !== project.service).map((service) => `sudo systemctl stop ${service} || true`),
-    `sudo systemctl start ${project.service}`,
+    ...(project.service ? [`sudo systemctl start ${project.service}`] : []),
   ].join(' && ');
-  exec(command, { timeout: 90_000, shell: '/bin/bash' }, (error) => {
+  exec(command || 'true', { timeout: 90_000, shell: '/bin/bash' }, (error) => {
     if (error) return res.status(500).json({ error: 'Preview konnte nicht gestartet werden.' });
-    res.json({ ok: true, project: { id: project.id, label: project.label, previewUrl: project.previewUrl } });
+    res.json({
+      ok: true,
+      project: {
+        id: project.id,
+        label: project.label,
+        previewUrl: project.previewUrl || null,
+        hasPreview: Boolean(project.previewUrl),
+      },
+    });
   });
 });
 

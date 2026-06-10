@@ -297,12 +297,23 @@
     const selected = projects.find(entry => entry.id === id);
     if (!selected) return;
     project.disabled = true;
-    previewLabel.textContent = `${selected.label} startet...`;
+    previewLabel.textContent = selected.hasPreview ? `${selected.label} startet...` : `${selected.label} wird geöffnet...`;
     try {
       await api(`/api/claude/projects/${id}/activate`, { method: 'POST' });
-      preview.src = selected.previewUrl;
-      openPreview.href = selected.previewUrl;
-      previewLabel.textContent = `${selected.label} · isolierte Dev-Datenbank`;
+      if (selected.hasPreview) {
+        preview.removeAttribute('srcdoc');
+        preview.src = selected.previewUrl;
+        openPreview.href = selected.previewUrl;
+        openPreview.hidden = false;
+        document.getElementById('reloadPreview').hidden = false;
+        previewLabel.textContent = `${selected.label} · isolierte Dev-Datenbank`;
+      } else {
+        preview.removeAttribute('src');
+        preview.srcdoc = `<!doctype html><html lang="de"><style>html,body{height:100%;margin:0}body{display:grid;place-items:center;background:#080b10;color:#7d8590;font:16px system-ui;text-align:center}.box{max-width:520px;padding:30px}h2{color:#e6edf3}</style><body><div class="box"><h2>${selected.label}</h2><p>Dieses Repository hat keine eigene Web-Preview. Du kannst es vollständig im Claude-Chat bearbeiten und anschließend nach main pushen.</p></div></body></html>`;
+        openPreview.hidden = true;
+        document.getElementById('reloadPreview').hidden = true;
+        previewLabel.textContent = `${selected.label} · Code-Repository ohne Web-Preview`;
+      }
     } catch (error) {
       previewLabel.textContent = error.message;
     } finally {
