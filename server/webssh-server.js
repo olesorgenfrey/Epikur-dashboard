@@ -1,4 +1,5 @@
 const https = require('https');
+const http = require('http');
 const { exec, execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -17,6 +18,16 @@ const CHAT_DATA_DIR = path.join(__dirname, 'data');
 const CHAT_DATA_FILE = path.join(CHAT_DATA_DIR, 'chats.json');
 const CHAT_MODELS = new Set(['sonnet', 'opus', 'haiku']);
 const CHAT_EFFORTS = new Set(['low', 'medium', 'high', 'xhigh']);
+const SERVER_SYSTEM_PROMPT = [
+  'Du arbeitest direkt auf dem Ubuntu-Server des Benutzers.',
+  'Dein Prozess läuft als Benutzer ole. Für notwendige administrative Aufgaben darfst du sudo -n verwenden;',
+  'ole besitzt dafür passwortlose Root-Rechte. Du darfst den gesamten Server verwalten, einschließlich',
+  '/home, /etc, /var/www, systemd, nginx, Docker, Datenbanken, Paketen und Firewall.',
+  'Behandle Produktionsdaten vorsichtig, prüfe vor Änderungen den Ist-Zustand und führe keine destruktiven',
+  'Aktionen ohne eindeutigen Auftrag aus. Gib niemals Passwörter, Tokens, private Schlüssel oder .env-Inhalte aus.',
+  'Das ausgewählte Repository ist dein Arbeitsverzeichnis. Vor Git-Änderungen prüfst du git status und',
+  'überschreibst keine fremden uncommittierten Änderungen.',
+].join(' ');
 const PROJECTS = {
   epikur: {
     id: 'epikur',
@@ -24,6 +35,7 @@ const PROJECTS = {
     repo: '/home/ole/epikur-preview',
     service: 'epikur-preview.service',
     previewUrl: 'https://dashboard.praxis-sorgenfrey.de:8443',
+    healthUrl: 'http://127.0.0.1:3010/',
   },
   'epikur-patient': {
     id: 'epikur-patient',
@@ -31,6 +43,7 @@ const PROJECTS = {
     repo: '/home/ole/epikur-patient-preview',
     service: 'epikur-patient-preview.service',
     previewUrl: 'https://dashboard.praxis-sorgenfrey.de:8444',
+    healthUrl: 'http://127.0.0.1:3011/',
   },
   'epikur-dashboard': {
     id: 'epikur-dashboard',
@@ -52,6 +65,41 @@ const PROJECTS = {
 function getProject(id) {
   return PROJECTS[id] || PROJECTS.epikur;
 }
+
+function runShell(command, timeout = 90_000) {
+  return new Promise((resolve, reject) => {
+    exec(command, { timeout, shell: '/bin/bash' }, (error, stdout, stderr) => {
+      if (error) {
+        error.stderr = stderr;
+        reject(error);
+        return;
+      }
+      resolve(stdout);
+    });
+  });
+}
+
+function checkHttp(url) {
+  return new Promise((resolve) => {
+    const request = http.get(url, { timeout: 5_000 }, (response) => {
+      response.resume();
+      resolve(response.statusCode >= 200 && response.statusCode < 500);
+    });
+    request.on('timeout', () => request.destroy());
+    request.on('error', () => resolve(false));
+  });
+}
+
+async function waitForPreview(url, timeout = 90_000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (await checkHttp(url)) return;
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
+  throw new Error('Preview wurde nicht rechtzeitig bereit.');
+}
+
+let projectActivationQueue = Promise.resolve();
 
 function getUsageSummary(result) {
   const modelUsage = Object.values(result.modelUsage || {});
@@ -196,9 +244,10 @@ app.post('/api/claude/projects/:id/activate', requireApiAuth, (req, res) => {
     ...services.filter((service) => service !== project.service).map((service) => `sudo systemctl stop ${service} || true`),
     ...(project.service ? [`sudo systemctl start ${project.service}`] : []),
   ].join(' && ');
-  exec(command || 'true', { timeout: 90_000, shell: '/bin/bash' }, (error) => {
-    if (error) return res.status(500).json({ error: 'Preview konnte nicht gestartet werden.' });
-    res.json({
+  const activate = async () => {
+    await runShell(command || 'true');
+    if (project.healthUrl) await waitForPreview(project.healthUrl);
+    return {
       ok: true,
       project: {
         id: project.id,
@@ -206,8 +255,17 @@ app.post('/api/claude/projects/:id/activate', requireApiAuth, (req, res) => {
         previewUrl: project.previewUrl || null,
         hasPreview: Boolean(project.previewUrl),
       },
+    };
+  };
+
+  const activation = projectActivationQueue.catch(() => {}).then(activate);
+  projectActivationQueue = activation;
+  activation
+    .then((result) => res.json(result))
+    .catch((error) => {
+      console.error('Preview activation failed:', error.stderr || error.message);
+      res.status(500).json({ error: 'Preview konnte nicht vollständig gestartet werden.' });
     });
-  });
 });
 
 app.get('/api/claude/git-status', requireApiAuth, (req, res) => {
@@ -357,6 +415,8 @@ app.post('/api/claude/chat', requireApiAuth, chatLimiter, (req, res) => {
     'json',
     '--permission-mode',
     'bypassPermissions',
+    '--append-system-prompt',
+    SERVER_SYSTEM_PROMPT,
     '--model',
     model,
     '--effort',

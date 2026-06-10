@@ -18,6 +18,8 @@ Environment=PATIENT_INVITE_SECRET=patient-preview-invite-2026
 ExecStart=/usr/bin/npm run dev -- --hostname 127.0.0.1 --port 3011
 Restart=always
 RestartSec=5
+MemoryHigh=700M
+MemoryMax=900M
 
 [Install]
 WantedBy=multi-user.target

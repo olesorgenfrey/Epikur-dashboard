@@ -142,6 +142,7 @@
   let activeChat = null;
   let chats = [];
   let projects = [];
+  let activatedProject = null;
   let busy = false;
 
   async function api(url, options) {
@@ -219,7 +220,7 @@
     activeChat = await api(`/api/claude/chats/${id}`);
     model.value = activeChat.model || 'sonnet';
     effort.value = activeChat.effort || 'medium';
-    if (project.value !== (activeChat.project || 'epikur')) {
+    if (activatedProject !== (activeChat.project || 'epikur')) {
       project.value = activeChat.project || 'epikur';
       await activateProject(project.value);
     }
@@ -300,9 +301,11 @@
     previewLabel.textContent = selected.hasPreview ? `${selected.label} startet...` : `${selected.label} wird geöffnet...`;
     try {
       await api(`/api/claude/projects/${id}/activate`, { method: 'POST' });
+      activatedProject = id;
       if (selected.hasPreview) {
         preview.removeAttribute('srcdoc');
-        preview.src = selected.previewUrl;
+        const separator = selected.previewUrl.includes('?') ? '&' : '?';
+        preview.src = `${selected.previewUrl}${separator}dashboardPreview=${Date.now()}`;
         openPreview.href = selected.previewUrl;
         openPreview.hidden = false;
         document.getElementById('reloadPreview').hidden = false;
@@ -363,7 +366,7 @@
   (async () => {
     await Promise.all([checkStatus(), loadProjects()]);
     await loadChats();
-    await activateProject(project.value || 'epikur');
+    if (!activatedProject) await activateProject(project.value || 'epikur');
   })().catch(error => {
     messages.innerHTML = '';
     addMessage('assistant', `Fehler: ${error.message}`);

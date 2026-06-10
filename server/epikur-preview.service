@@ -1,0 +1,28 @@
+[Unit]
+Description=Epikur isolated preview
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=ole
+WorkingDirectory=/home/ole/epikur-preview
+Environment=HOME=/home/ole
+Environment=NODE_ENV=development
+Environment=NODE_OPTIONS=--max-old-space-size=640
+Environment=DATABASE_URL=mysql://epikur:preview_epikur_2026@127.0.0.1:3307/epikur
+Environment=APP_URL=https://dashboard.praxis-sorgenfrey.de:8443
+Environment=BETTER_AUTH_SECRET=preview-only-secret-2026-dashboard
+Environment=DEV_MODE=true
+Environment=NEXT_PUBLIC_DEV_MODE=true
+Environment=UPLOAD_DIR=/home/ole/epikur-preview/uploads
+Environment=AI_BASE_URL=http://127.0.0.1:8000/v1
+Environment=AI_MODEL=gpt-4o
+ExecStart=/usr/bin/npm run dev -- --hostname 127.0.0.1 --port 3010
+Restart=always
+RestartSec=5
+MemoryHigh=700M
+MemoryMax=900M
+
+[Install]
+WantedBy=multi-user.target
