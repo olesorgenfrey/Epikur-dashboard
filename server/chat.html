@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code Workspace</title>
+<style>
+  :root { color-scheme: dark; --bg:#0d1117; --panel:#161b22; --line:#30363d; --muted:#7d8590; --text:#e6edf3; --blue:#58a6ff; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--text); font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; overflow: hidden; }
+  button, select, textarea { font: inherit; }
+  .workspace { height: 100%; display: grid; grid-template-columns: minmax(330px, 20%) minmax(0, 80%); }
+  .chat-pane { min-width: 0; display: grid; grid-template-columns: 155px minmax(0, 1fr); border-right: 1px solid var(--line); }
+  .history { min-width: 0; display: flex; flex-direction: column; background: #10151d; border-right: 1px solid var(--line); }
+  .chat-pane.history-collapsed { grid-template-columns: 38px minmax(0, 1fr); }
+  .chat-pane.history-collapsed .history-head > :not(.history-toggle), .chat-pane.history-collapsed .chat-list { display: none; }
+  .chat-pane.history-collapsed .history { align-items: center; }
+  .history-head { padding: 8px; border-bottom: 1px solid var(--line); }
+  .history-toggle { width: 100%; margin-bottom: 7px; padding: 6px; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; }
+  .new-chat { width: 100%; padding: 9px; border: 1px solid var(--line); border-radius: 8px; background: #21262d; color: var(--text); cursor: pointer; }
+  .chat-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .chat-item { position: relative; width: 100%; margin-bottom: 5px; padding: 9px 22px 9px 9px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: #c9d1d9; text-align: left; cursor: pointer; }
+  .chat-item:hover, .chat-item.active { background: #21262d; border-color: var(--line); }
+  .chat-title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; }
+  .chat-date { margin-top: 4px; color: var(--muted); font-size: 9px; }
+  .delete-chat { position: absolute; right: 5px; top: 7px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+  .chat-main { min-width: 0; display: flex; flex-direction: column; }
+  .chat-header { min-height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+  .brand { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 650; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #d29922; box-shadow: 0 0 7px #d29922; }
+  .dot.online { background: #3fb950; box-shadow: 0 0 7px #3fb950; }
+  .meta { margin-top: 3px; color: var(--muted); font-size: 9px; }
+  select { max-width: 115px; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: #0d1117; color: var(--text); outline: none; font-size: 10px; }
+  .messages { flex: 1; overflow-y: auto; padding: 18px; }
+  .empty { min-height: 100%; display: grid; place-items: center; text-align: center; color: var(--muted); }
+  .empty h1 { margin: 0 0 8px; color: var(--text); font-size: 19px; }
+  .message { display: flex; margin-bottom: 16px; }
+  .message.user { justify-content: flex-end; }
+  .bubble { max-width: 92%; padding: 11px 13px; border-radius: 12px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; font-size: 12px; }
+  .user .bubble { background: #1f6feb; color: white; border-bottom-right-radius: 4px; }
+  .assistant .bubble { background: var(--panel); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+  .typing { color: var(--muted); }
+  .composer-wrap { padding: 9px 12px 12px; }
+  .composer { display: flex; align-items: flex-end; gap: 8px; padding: 7px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+  textarea { flex: 1; resize: none; min-height: 40px; max-height: 145px; padding: 10px; border: 0; outline: 0; background: transparent; color: var(--text); line-height: 1.4; }
+  textarea::placeholder { color: var(--muted); }
+  .send { width: 38px; height: 38px; border: 0; border-radius: 9px; background: #238636; color: white; font-size: 18px; cursor: pointer; }
+  .send:disabled { opacity: .45; cursor: default; }
+  .hint { padding-top: 5px; color: #6e7681; font-size: 9px; text-align: center; }
+  .preview-pane { min-width: 0; display: flex; flex-direction: column; background: #080b10; }
+  .preview-bar { min-height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .preview-title { font-size: 13px; font-weight: 650; }
+  .preview-url { margin-top: 3px; color: var(--muted); font: 9px monospace; }
+  .preview-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+  .preview-actions button, .preview-actions a { padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: #21262d; color: #c9d1d9; text-decoration: none; cursor: pointer; }
+  .preview-frame { flex: 1; width: 100%; border: 0; background: white; }
+  @media (max-width: 900px) {
+    body { overflow: auto; }
+    .workspace { height: auto; min-height: 100%; grid-template-columns: 1fr; grid-template-rows: minmax(650px, 68vh) minmax(620px, 72vh); }
+    .chat-pane { border-right: 0; border-bottom: 1px solid var(--line); }
+  }
+  @media (max-width: 560px) {
+    .chat-pane { grid-template-columns: 105px minmax(0, 1fr); }
+    .history-head, .chat-list { padding: 6px; }
+    .chat-header, .preview-bar { padding: 8px; }
+    .messages { padding: 12px 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="workspace">
+  <section class="chat-pane" id="chatPane">
+    <aside class="history">
+      <div class="history-head">
+        <button class="history-toggle" id="historyToggle" title="Alte Chats ein-/ausklappen">☰</button>
+        <button class="new-chat" id="newChat">+ Neuer Chat</button>
+      </div>
+      <div class="chat-list" id="chatList"></div>
+    </aside>
+    <div class="chat-main">
+      <header class="chat-header">
+        <div>
+          <div class="brand"><span class="dot" id="statusDot"></span>Claude Code</div>
+        <div class="meta" id="statusText">Prüfe Subscription...</div>
+        </div>
+        <div class="controls">
+          <select id="project" aria-label="Projekt"></select>
+          <select id="model" aria-label="Claude-Modell">
+            <option value="sonnet">Sonnet 4.6</option>
+            <option value="opus">Opus 4.6</option>
+            <option value="haiku">Haiku 4.5</option>
+            <option value="fable" disabled>Fable 5 (nicht verfügbar)</option>
+          </select>
+          <select id="effort" aria-label="Aufwand">
+            <option value="low">Aufwand: niedrig</option>
+            <option value="medium" selected>Aufwand: mittel</option>
+            <option value="high">Aufwand: hoch</option>
+            <option value="xhigh">Aufwand: maximal</option>
+          </select>
+        </div>
+      </header>
+      <main class="messages" id="messages">
+        <div class="empty" id="empty"><div><h1>Woran sollen wir arbeiten?</h1><p>Claude hat Zugriff auf Projekt und Server.</p></div></div>
+      </main>
+      <div class="composer-wrap">
+        <form class="composer" id="form">
+          <textarea id="input" rows="1" placeholder="Nachricht an Claude Code..." autofocus></textarea>
+          <button class="send" id="send" type="submit" aria-label="Senden">↑</button>
+        </form>
+        <div class="hint" id="usage">Automatische Kontextkomprimierung aktiv · Chats werden gespeichert</div>
+      </div>
+    </div>
+  </section>
+  <section class="preview-pane">
+    <header class="preview-bar">
+      <div><div class="preview-title">Isolierte Preview</div><div class="preview-url" id="previewLabel">Preview wird geladen...</div></div>
+      <div class="preview-actions">
+        <button id="reloadPreview" type="button">↻ Neu laden</button>
+        <button id="pushMain" type="button">Zu main pushen</button>
+        <a id="openPreview" href="https://dashboard.praxis-sorgenfrey.de:8443" target="_blank" rel="noopener">Neuer Tab ↗</a>
+      </div>
+    </header>
+    <iframe class="preview-frame" id="preview" src="https://dashboard.praxis-sorgenfrey.de:8443" title="Epikur Isolated Preview" allow="clipboard-read; clipboard-write"></iframe>
+  </section>
+</div>
+<script>
+  const chatList = document.getElementById('chatList');
+  const messages = document.getElementById('messages');
+  const emptyTemplate = document.getElementById('empty').cloneNode(true);
+  const input = document.getElementById('input');
+  const send = document.getElementById('send');
+  const form = document.getElementById('form');
+  const model = document.getElementById('model');
+  const effort = document.getElementById('effort');
+  const project = document.getElementById('project');
+  const preview = document.getElementById('preview');
+  const openPreview = document.getElementById('openPreview');
+  const previewLabel = document.getElementById('previewLabel');
+  const usage = document.getElementById('usage');
+  let activeChat = null;
+  let chats = [];
+  let projects = [];
+  let busy = false;
+
+  async function api(url, options) {
+    const response = await fetch(url, options);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Anfrage fehlgeschlagen');
+    return data;
+  }
+
+  function addMessage(role, text, extraClass = '') {
+    const empty = messages.querySelector('.empty');
+    if (empty) empty.remove();
+    const row = document.createElement('div');
+    row.className = `message ${role}`;
+    const bubble = document.createElement('div');
+    bubble.className = `bubble ${extraClass}`;
+    bubble.textContent = text;
+    row.appendChild(bubble);
+    messages.appendChild(row);
+    messages.scrollTop = messages.scrollHeight;
+    return row;
+  }
+
+  function renderMessages(chat) {
+    messages.innerHTML = '';
+    if (!chat.messages.length) messages.appendChild(emptyTemplate.cloneNode(true));
+    chat.messages.forEach(entry => addMessage(entry.role, entry.content));
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function renderChatList() {
+    chatList.innerHTML = '';
+    chats.forEach(chat => {
+      const item = document.createElement('div');
+      item.setAttribute('role', 'button');
+      item.tabIndex = 0;
+      item.className = `chat-item ${activeChat?.id === chat.id ? 'active' : ''}`;
+      item.innerHTML = `<div class="chat-title"></div><div class="chat-date"></div><button class="delete-chat" title="Löschen">×</button>`;
+      item.querySelector('.chat-title').textContent = chat.title;
+      item.querySelector('.chat-date').textContent = new Date(chat.updatedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+      item.addEventListener('click', event => {
+        if (!event.target.classList.contains('delete-chat')) openChat(chat.id);
+      });
+      item.addEventListener('keydown', event => {
+        if ((event.key === 'Enter' || event.key === ' ') && !event.target.classList.contains('delete-chat')) openChat(chat.id);
+      });
+      item.querySelector('.delete-chat').addEventListener('click', async event => {
+        event.stopPropagation();
+        await api(`/api/claude/chats/${chat.id}`, { method: 'DELETE' });
+        await loadChats(activeChat?.id === chat.id ? null : activeChat?.id);
+      });
+      chatList.appendChild(item);
+    });
+  }
+
+  async function loadChats(preferredId) {
+    chats = await api('/api/claude/chats');
+    renderChatList();
+    const nextId = preferredId || chats[0]?.id;
+    if (nextId) await openChat(nextId);
+    else await createChat();
+  }
+
+  async function createChat() {
+    const chat = await api('/api/claude/chats', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: model.value, effort: effort.value, project: project.value }),
+    });
+    chats.unshift(chat);
+    await openChat(chat.id);
+  }
+
+  async function openChat(id) {
+    activeChat = await api(`/api/claude/chats/${id}`);
+    model.value = activeChat.model || 'sonnet';
+    effort.value = activeChat.effort || 'medium';
+    if (project.value !== (activeChat.project || 'epikur')) {
+      project.value = activeChat.project || 'epikur';
+      await activateProject(project.value);
+    }
+    renderUsage(activeChat.usage);
+    renderMessages(activeChat);
+    renderChatList();
+    input.focus();
+  }
+
+  async function submitMessage() {
+    const message = input.value.trim();
+    if (!message || busy || !activeChat) return;
+    busy = true;
+    input.value = '';
+    input.style.height = 'auto';
+    send.disabled = true;
+    addMessage('user', message);
+    const pending = addMessage('assistant', 'Claude arbeitet...', 'typing');
+    try {
+      const data = await api('/api/claude/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, conversationId: activeChat.id, model: model.value, effort: effort.value }),
+      });
+      pending.querySelector('.bubble').classList.remove('typing');
+      pending.querySelector('.bubble').textContent = data.response;
+      activeChat = data.chat;
+      renderUsage(data.usage);
+      chats = await api('/api/claude/chats');
+      renderChatList();
+    } catch (error) {
+      pending.querySelector('.bubble').classList.remove('typing');
+      pending.querySelector('.bubble').textContent = `Fehler: ${error.message}`;
+    } finally {
+      busy = false;
+      send.disabled = false;
+      input.focus();
+      messages.scrollTop = messages.scrollHeight;
+    }
+  }
+
+  async function checkStatus() {
+    try {
+      const data = await api('/api/claude/status');
+      if (data.loggedIn) {
+        document.getElementById('statusDot').classList.add('online');
+        document.getElementById('statusText').textContent = `${data.subscriptionType || 'Claude.ai'} · Restkontingent wird von Claude nicht bereitgestellt`;
+      }
+    } catch (error) {
+      document.getElementById('statusText').textContent = error.message;
+    }
+  }
+
+  function renderUsage(data) {
+    if (!data) {
+      usage.textContent = 'Automatische Kontextkomprimierung aktiv · Noch keine Token-Daten';
+      return;
+    }
+    const context = data.contextPercent == null ? 'unbekannt' : `${data.contextPercent}%`;
+    usage.textContent = `Kontext ${context} · ${data.inputTokens.toLocaleString('de-DE')} rein · ${data.outputTokens.toLocaleString('de-DE')} raus · Auto-Kompakt aktiv`;
+  }
+
+  async function loadProjects() {
+    projects = await api('/api/claude/projects');
+    project.innerHTML = '';
+    projects.forEach(entry => {
+      const option = document.createElement('option');
+      option.value = entry.id;
+      option.textContent = entry.label;
+      project.appendChild(option);
+    });
+  }
+
+  async function activateProject(id) {
+    const selected = projects.find(entry => entry.id === id);
+    if (!selected) return;
+    project.disabled = true;
+    previewLabel.textContent = `${selected.label} startet...`;
+    try {
+      await api(`/api/claude/projects/${id}/activate`, { method: 'POST' });
+      preview.src = selected.previewUrl;
+      openPreview.href = selected.previewUrl;
+      previewLabel.textContent = `${selected.label} · isolierte Dev-Datenbank`;
+    } catch (error) {
+      previewLabel.textContent = error.message;
+    } finally {
+      project.disabled = false;
+    }
+  }
+
+  form.addEventListener('submit', event => { event.preventDefault(); submitMessage(); });
+  input.addEventListener('keydown', event => {
+    if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); submitMessage(); }
+  });
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = `${Math.min(input.scrollHeight, 145)}px`;
+  });
+  document.getElementById('newChat').addEventListener('click', createChat);
+  document.getElementById('historyToggle').addEventListener('click', () => {
+    document.getElementById('chatPane').classList.toggle('history-collapsed');
+  });
+  project.addEventListener('change', async () => {
+    await activateProject(project.value);
+    await createChat();
+  });
+  document.getElementById('reloadPreview').addEventListener('click', () => {
+    preview.src = preview.src;
+  });
+  document.getElementById('pushMain').addEventListener('click', async event => {
+    const button = event.currentTarget;
+    if (!confirm('Alle Änderungen der Preview committen und nach main pushen?')) return;
+    button.disabled = true;
+    button.textContent = 'Pushe...';
+    try {
+      const result = await api('/api/claude/push-main', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: activeChat?.title || 'Update aus Dashboard Preview', project: activeChat?.project || project.value }),
+      });
+      button.textContent = result.noChanges ? 'Keine Änderungen' : `Gepusht${result.commit ? ` · ${result.commit}` : ''}`;
+    } catch (error) {
+      button.textContent = 'Push fehlgeschlagen';
+      alert(error.message);
+    } finally {
+      setTimeout(() => { button.disabled = false; button.textContent = 'Zu main pushen'; }, 3500);
+    }
+  });
+
+  (async () => {
+    await Promise.all([checkStatus(), loadProjects()]);
+    await loadChats();
+    await activateProject(project.value || 'epikur');
+  })().catch(error => {
+    messages.innerHTML = '';
+    addMessage('assistant', `Fehler: ${error.message}`);
+  });
+</script>
+</body>
+</html>

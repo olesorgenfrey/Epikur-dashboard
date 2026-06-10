@@ -1,0 +1,23 @@
+[Unit]
+Description=Epikur Patient isolated preview
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=ole
+WorkingDirectory=/home/ole/epikur-patient-preview
+Environment=HOME=/home/ole
+Environment=NODE_ENV=development
+Environment=NODE_OPTIONS=--max-old-space-size=640
+Environment=DATABASE_URL=mysql://epikur:preview_epikur_2026@127.0.0.1:3307/epikur
+Environment=PATIENT_APP_URL=https://dashboard.praxis-sorgenfrey.de:8444
+Environment=JWT_SECRET=patient-preview-jwt-2026
+Environment=MAGIC_LINK_SECRET=patient-preview-magic-2026
+Environment=PATIENT_INVITE_SECRET=patient-preview-invite-2026
+ExecStart=/usr/bin/npm run dev -- --hostname 127.0.0.1 --port 3011
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

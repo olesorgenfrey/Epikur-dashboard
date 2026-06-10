@@ -1,0 +1,133 @@
+server {
+    server_name dashboard.praxis-sorgenfrey.de;
+
+    root /var/www/epikur-dashboard;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    location = /terminal-login {
+        proxy_pass https://127.0.0.1:4000/;
+        proxy_ssl_verify off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location = /chat {
+        proxy_pass https://127.0.0.1:4000;
+        proxy_ssl_verify off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /api/claude/ {
+        proxy_pass https://127.0.0.1:4000;
+        proxy_ssl_verify off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 10m;
+        proxy_send_timeout 10m;
+    }
+
+    location ~ ^/(?:login|logout|terminal|claude-login|claude-auth(?:/.*)?|mcp-info)$ {
+        proxy_pass https://127.0.0.1:4000;
+        proxy_ssl_verify off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /public/ {
+        proxy_pass https://127.0.0.1:4000;
+        proxy_ssl_verify off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location = /ws {
+        proxy_pass https://127.0.0.1:4000;
+        proxy_ssl_verify off;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 1d;
+    }
+
+    location ~* \.(?:css|js|jpg|jpeg|png|gif|svg|webp|ico|woff2?)$ {
+        expires 7d;
+        add_header Cache-Control "public, max-age=604800, immutable";
+        try_files $uri =404;
+    }
+
+    listen [::]:443 ssl ipv6only=on; # managed by Certbot
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/dashboard.praxis-sorgenfrey.de/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/dashboard.praxis-sorgenfrey.de/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+}
+server {
+    listen 8444 ssl;
+    listen [::]:8444 ssl;
+    server_name dashboard.praxis-sorgenfrey.de;
+
+    ssl_certificate /etc/letsencrypt/live/dashboard.praxis-sorgenfrey.de/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/dashboard.praxis-sorgenfrey.de/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:3011;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+
+server {
+    listen 8443 ssl;
+    listen [::]:8443 ssl;
+    server_name dashboard.praxis-sorgenfrey.de;
+
+    ssl_certificate /etc/letsencrypt/live/dashboard.praxis-sorgenfrey.de/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/dashboard.praxis-sorgenfrey.de/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:3010;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+server {
+    if ($host = dashboard.praxis-sorgenfrey.de) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    listen 80;
+    listen [::]:80;
+    server_name dashboard.praxis-sorgenfrey.de;
+    return 404; # managed by Certbot
+
+
+}

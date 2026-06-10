@@ -29,16 +29,18 @@ fi
 
 install -m 600 "$SOURCE_REPO/.env" "$DEPLOY_REPO/.env"
 
-preview_was_active=false
-if systemctl is-active --quiet epikur-preview.service; then
-  preview_was_active=true
-  sudo systemctl stop epikur-preview.service
-fi
+active_preview_services=()
+for service in epikur-preview.service epikur-patient-preview.service; do
+  if systemctl is-active --quiet "$service"; then
+    active_preview_services+=("$service")
+    sudo systemctl stop "$service"
+  fi
+done
 
 restart_preview() {
-  if [[ "$preview_was_active" == true ]]; then
-    sudo systemctl start epikur-preview.service
-  fi
+  for service in "${active_preview_services[@]}"; do
+    sudo systemctl start "$service"
+  done
 }
 trap restart_preview EXIT
 
