@@ -514,7 +514,7 @@ function Terminal(){
   return(
     <div className="page">
       <div className="ph">
-        <div><h1 className="ptitle">Co<em>de</em></h1><p className="psub">Web-Terminal · dashboard.praxis-sorgenfrey.de</p></div>
+        <div><h1 className="ptitle">Co<em>de</em></h1><p className="psub">Claude Code Chat · /home/ole/epikur</p></div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           <span style={{display:"flex",alignItems:"center",gap:7,padding:"7px 14px",borderRadius:30,background:"rgba(255,255,255,.05)",border:"1px solid var(--gborder)",fontSize:11,fontFamily:"'IBM Plex Mono',monospace",color:"var(--t2)"}}>
             <span className="tstatd" style={{background:online===null?"#FBBf24":online?"#4ADE80":"#F87171",boxShadow:`0 0 7px ${online===null?"#FBBf24":online?"#4ADE80":"#F87171"}`}}></span>
@@ -531,13 +531,13 @@ function Terminal(){
             <div className="tdot" style={{background:"#FBBf24"}}></div>
             <div className="tdot" style={{background:"#4ADE80"}}></div>
           </div>
-          <span className="ttitle">Claude Code — /home/ole/epikur</span>
+          <span className="ttitle">Claude Code Chat — Zugriff auf Projekt und Server</span>
         </div>
         {online===false?(
           <div className="toff">
-            <div style={{fontSize:15,fontWeight:600}}>Server nicht erreichbar</div>
+            <div style={{fontSize:15,fontWeight:600}}>Claude Chat nicht erreichbar</div>
             <div style={{fontSize:12,color:"var(--t2)",maxWidth:420,lineHeight:1.8,fontFamily:"'IBM Plex Mono',monospace",textAlign:"left"}}>
-              Der WebSSH-Dienst auf dem Server ist nicht erreichbar.<br/>
+              Der Claude-Chat-Dienst auf dem Server ist nicht erreichbar.<br/>
               Bitte den Dienst „webssh" und die Nginx-Konfiguration prüfen.
             </div>
             <button className="btn btn-g" onClick={()=>setKey(k=>k+1)}>Erneut prüfen</button>
