@@ -1,0 +1,12 @@
+[Unit]
+Description=Deploy Epikur when origin/main changes
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=ole
+Group=ole
+ExecStart=/home/ole/bin/epikur-auto-deploy
+Nice=10

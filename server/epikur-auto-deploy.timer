@@ -1,0 +1,12 @@
+[Unit]
+Description=Check Epikur origin/main for deployment changes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=10s
+Persistent=true
+Unit=epikur-auto-deploy.service
+
+[Install]
+WantedBy=timers.target
