@@ -83,7 +83,37 @@
   .preview-url { margin-top: 3px; color: var(--muted); font: 9px monospace; }
   .preview-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
   .preview-actions button, .preview-actions a { padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: #21262d; color: #c9d1d9; text-decoration: none; cursor: pointer; }
+  .preview-actions .publish-trigger { border-color: #2ea043; background: #238636; color: white; font-weight: 650; }
   .preview-frame { flex: 1; width: 100%; border: 0; background: white; }
+  .publish-overlay { position: fixed; inset: 0; z-index: 120; display: flex; justify-content: flex-end; background: rgba(1,4,9,.72); backdrop-filter: blur(3px); }
+  .publish-overlay[hidden] { display: none; }
+  .publish-panel { width: min(430px, 100%); height: 100%; display: flex; flex-direction: column; padding: 22px; border-left: 1px solid var(--line); background: #0d1117; box-shadow: -18px 0 50px rgba(0,0,0,.35); }
+  .publish-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+  .publish-head h2 { margin: 0; font-size: 19px; }
+  .publish-head p { margin: 6px 0 0; color: var(--muted); font-size: 11px; }
+  .publish-close { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 8px; background: #161b22; color: var(--muted); cursor: pointer; }
+  .publish-body { flex: 1; overflow-y: auto; padding: 22px 0; }
+  .publish-project { padding: 14px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); }
+  .publish-project strong { display: block; font-size: 13px; }
+  .publish-project span { display: block; margin-top: 5px; color: var(--muted); font-size: 10px; line-height: 1.45; }
+  .publish-steps { margin: 20px 0 0; padding: 0; list-style: none; }
+  .publish-step { display: grid; grid-template-columns: 28px minmax(0,1fr); gap: 10px; padding: 10px 0; color: var(--muted); }
+  .publish-step[hidden] { display: none; }
+  .publish-step-mark { width: 25px; height: 25px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: #161b22; color: var(--muted); font-size: 10px; }
+  .publish-step strong { display: block; color: #c9d1d9; font-size: 12px; }
+  .publish-step small { display: block; margin-top: 3px; font-size: 10px; line-height: 1.4; }
+  .publish-step.active .publish-step-mark { border-color: var(--blue); color: var(--blue); box-shadow: 0 0 0 3px rgba(88,166,255,.12); }
+  .publish-step.done .publish-step-mark { border-color: #2ea043; background: #238636; color: white; }
+  .publish-step.error .publish-step-mark { border-color: #f85149; background: rgba(248,81,73,.12); color: #ff7b72; }
+  .publish-result { margin-top: 20px; padding: 15px; border: 1px solid rgba(46,160,67,.7); border-radius: 11px; background: rgba(35,134,54,.12); }
+  .publish-result[hidden] { display: none; }
+  .publish-result-title { display: flex; align-items: center; gap: 8px; color: #56d364; font-size: 13px; font-weight: 700; }
+  .live-signal { width: 9px; height: 9px; border-radius: 50%; background: #3fb950; box-shadow: 0 0 10px #3fb950; }
+  .publish-result p { margin: 8px 0 0; color: #b1bac4; font-size: 10px; line-height: 1.5; }
+  .publish-result a { display: inline-block; margin-top: 10px; color: #79c0ff; font-size: 11px; text-decoration: none; }
+  .publish-footer { padding-top: 16px; border-top: 1px solid var(--line); }
+  .publish-confirm { width: 100%; padding: 11px 14px; border: 0; border-radius: 9px; background: #238636; color: white; font-weight: 700; cursor: pointer; }
+  .publish-confirm:disabled { opacity: .55; cursor: wait; }
   @media (max-width: 900px) {
     body { overflow: auto; }
     .workspace { height: auto; min-height: 100%; grid-template-columns: 1fr; grid-template-rows: minmax(650px, 68vh) minmax(620px, 72vh); }
@@ -165,12 +195,48 @@
       <div><div class="preview-title">Isolierte Preview</div><div class="preview-url" id="previewLabel">Preview wird geladen...</div></div>
       <div class="preview-actions">
         <button id="reloadPreview" type="button">↻ Neu laden</button>
-        <button id="pushMain" type="button">Zu main pushen</button>
+        <button class="publish-trigger" id="publishOpen" type="button">Publish</button>
         <a id="openPreview" href="https://dashboard.praxis-sorgenfrey.de:8443" target="_blank" rel="noopener">Neuer Tab ↗</a>
       </div>
     </header>
     <iframe class="preview-frame" id="preview" src="https://dashboard.praxis-sorgenfrey.de:8443" title="Epikur Isolated Preview" allow="clipboard-read; clipboard-write"></iframe>
   </section>
+</div>
+<div class="publish-overlay" id="publishOverlay" hidden>
+  <aside class="publish-panel" role="dialog" aria-modal="true" aria-labelledby="publishTitle">
+    <div class="publish-head">
+      <div><h2 id="publishTitle">Publish</h2><p>Änderungen nach main bringen und live deployen.</p></div>
+      <button class="publish-close" id="publishClose" type="button" aria-label="Panel schließen">×</button>
+    </div>
+    <div class="publish-body">
+      <div class="publish-project">
+        <strong id="publishProjectName">Projekt</strong>
+        <span id="publishSummary">Prüfe den aktuellen Stand...</span>
+      </div>
+      <ol class="publish-steps">
+        <li class="publish-step" data-publish-step="push">
+          <span class="publish-step-mark">1</span>
+          <div><strong>Nach main veröffentlichen</strong><small>Offene Änderungen committen, rebasen und pushen.</small></div>
+        </li>
+        <li class="publish-step" data-publish-step="deploy">
+          <span class="publish-step-mark">2</span>
+          <div><strong>Produktion deployen</strong><small>Die Produktionsversion wird neu gebaut und gestartet.</small></div>
+        </li>
+        <li class="publish-step" data-publish-step="live">
+          <span class="publish-step-mark">3</span>
+          <div><strong>Live prüfen</strong><small>Der echte Produktionsendpunkt wird kontrolliert.</small></div>
+        </li>
+      </ol>
+      <div class="publish-result" id="publishResult" hidden>
+        <div class="publish-result-title"><span class="live-signal"></span><span id="publishResultTitle">Jetzt live</span></div>
+        <p id="publishResultText"></p>
+        <a id="publishLiveLink" target="_blank" rel="noopener">Live-Version öffnen ↗</a>
+      </div>
+    </div>
+    <div class="publish-footer">
+      <button class="publish-confirm" id="publishConfirm" type="button">Publish</button>
+    </div>
+  </aside>
 </div>
 <script>
   const chatList = document.getElementById('chatList');
@@ -186,11 +252,18 @@
   const openPreview = document.getElementById('openPreview');
   const previewLabel = document.getElementById('previewLabel');
   const usage = document.getElementById('usage');
+  const publishOpen = document.getElementById('publishOpen');
+  const publishOverlay = document.getElementById('publishOverlay');
+  const publishClose = document.getElementById('publishClose');
+  const publishConfirm = document.getElementById('publishConfirm');
+  const publishSummary = document.getElementById('publishSummary');
+  const publishResult = document.getElementById('publishResult');
   let activeChat = null;
   let chats = [];
   let projects = [];
   let activatedProject = null;
   let busy = false;
+  let publishBusy = false;
   let previewRetryTimer = null;
 
   function startPreviewRetry(url, label) {
@@ -218,8 +291,134 @@
   async function api(url, options) {
     const response = await fetch(url, options);
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Anfrage fehlgeschlagen');
+    if (!response.ok) {
+      const error = new Error(data.error || 'Anfrage fehlgeschlagen');
+      error.stage = data.stage || null;
+      throw error;
+    }
     return data;
+  }
+
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  function setPublishStep(name, state, detail) {
+    const step = document.querySelector(`[data-publish-step="${name}"]`);
+    if (!step) return;
+    step.classList.remove('active', 'done', 'error');
+    if (state) step.classList.add(state);
+    const mark = step.querySelector('.publish-step-mark');
+    mark.textContent = state === 'done' ? '✓' : state === 'error' ? '!' : ({ push: '1', deploy: '2', live: '3' }[name]);
+    if (detail) step.querySelector('small').textContent = detail;
+  }
+
+  function resetPublishPanel(selected) {
+    publishResult.hidden = true;
+    publishConfirm.disabled = false;
+    publishConfirm.textContent = 'Publish';
+    document.getElementById('publishProjectName').textContent = selected?.label || 'Projekt';
+    setPublishStep('push', '', 'Offene Änderungen committen, rebasen und pushen.');
+    setPublishStep('deploy', '', 'Die Produktionsversion wird neu gebaut und gestartet.');
+    setPublishStep('live', '', 'Der echte Produktionsendpunkt wird kontrolliert.');
+    document.querySelector('[data-publish-step="deploy"]').hidden = !selected?.canDeploy;
+    document.querySelector('[data-publish-step="live"]').hidden = !selected?.canDeploy;
+  }
+
+  async function openPublishPanel() {
+    const selected = projects.find(entry => entry.id === project.value);
+    resetPublishPanel(selected);
+    publishOverlay.hidden = false;
+    publishSummary.textContent = 'Prüfe den aktuellen Stand...';
+    try {
+      const status = await api(`/api/claude/git-status?project=${encodeURIComponent(project.value)}`);
+      if (status.dirty) {
+        publishSummary.textContent = `${status.files.length} offene ${status.files.length === 1 ? 'Datei' : 'Dateien'} werden veröffentlicht${selected?.canDeploy ? ' und danach live deployt' : ''}.`;
+      } else {
+        publishSummary.textContent = `Der Arbeitsbaum ist sauber. Bereits vorhandene Commits werden ebenfalls geprüft${selected?.canDeploy ? ' und live deployt' : ''}.`;
+      }
+    } catch (error) {
+      publishSummary.textContent = error.message;
+    }
+  }
+
+  function closePublishPanel() {
+    if (!publishBusy) publishOverlay.hidden = true;
+  }
+
+  async function waitForServerRestart(previousStartedAt) {
+    await sleep(1_600);
+    const deadline = Date.now() + 45_000;
+    while (Date.now() < deadline) {
+      try {
+        const health = await api('/api/claude/server-health');
+        if (health.startedAt !== previousStartedAt) return;
+      } catch {}
+      await sleep(1_000);
+    }
+    throw new Error('Das Code-Tool wurde nicht rechtzeitig neu gestartet.');
+  }
+
+  async function runPublish() {
+    if (publishBusy) return;
+    const selected = projects.find(entry => entry.id === project.value);
+    if (!selected) return;
+    publishBusy = true;
+    publishConfirm.disabled = true;
+    publishConfirm.textContent = 'Veröffentliche...';
+    publishResult.hidden = true;
+    let activeStep = 'push';
+    try {
+      setPublishStep('push', 'active', 'Änderungen und vorhandene Commits werden nach main gebracht...');
+      const published = await api('/api/claude/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: activeChat?.title || 'Update aus Dashboard Preview',
+          project: project.value,
+        }),
+      });
+      const pushDetail = published.noChanges
+        ? `main war bereits aktuell · Commit ${published.commit}`
+        : `${published.pushedCommits} ${published.pushedCommits === 1 ? 'Commit' : 'Commits'} veröffentlicht · ${published.files.length} ${published.files.length === 1 ? 'Datei' : 'Dateien'}`;
+      setPublishStep('push', 'done', pushDetail);
+
+      let deployed = null;
+      if (selected.canDeploy) {
+        activeStep = 'deploy';
+        setPublishStep('deploy', 'active', 'Produktionsversion wird gebaut und gestartet...');
+        deployed = await api('/api/claude/deploy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project: project.value }),
+        });
+        setPublishStep('deploy', 'done', 'Deployment abgeschlossen.');
+        activeStep = 'live';
+        setPublishStep('live', 'active', deployed.restartRequired ? 'Code-Tool startet neu...' : 'Produktionsendpunkt antwortet.');
+        if (deployed.restartRequired) await waitForServerRestart(deployed.serverStartedAt);
+        setPublishStep('live', 'done', 'Die neue Version ist erreichbar.');
+      }
+
+      const resultTitle = document.getElementById('publishResultTitle');
+      const resultText = document.getElementById('publishResultText');
+      const liveLink = document.getElementById('publishLiveLink');
+      resultTitle.textContent = selected.canDeploy ? 'Jetzt live' : 'Auf main veröffentlicht';
+      resultText.textContent = published.noChanges
+        ? `Commit ${published.commit} war bereits auf main${selected.canDeploy ? ' und die Live-Version wurde geprüft.' : '.'}`
+        : `Commit ${published.commit} wurde veröffentlicht${selected.canDeploy ? ' und erfolgreich live bereitgestellt.' : '.'}`;
+      liveLink.hidden = !deployed?.liveUrl;
+      if (deployed?.liveUrl) liveLink.href = deployed.liveUrl;
+      publishResult.hidden = false;
+      publishSummary.textContent = selected.canDeploy ? 'Veröffentlichung und Live-Deployment sind abgeschlossen.' : 'Die Veröffentlichung nach main ist abgeschlossen.';
+      publishConfirm.textContent = 'Fertig';
+      publishOpen.textContent = selected.canDeploy ? '✓ Live' : '✓ Published';
+      setTimeout(() => { publishOpen.textContent = 'Publish'; }, 5_000);
+    } catch (error) {
+      setPublishStep(error.stage || activeStep, 'error', error.message);
+      publishSummary.textContent = error.message;
+      publishConfirm.textContent = 'Erneut versuchen';
+    } finally {
+      publishBusy = false;
+      publishConfirm.disabled = false;
+    }
   }
 
   const STORAGE_KEY = 'practio-dashboard-v1';
@@ -631,7 +830,7 @@
         startPreviewRetry(selected.previewUrl, selected.label);
       } else {
         preview.removeAttribute('src');
-        preview.srcdoc = `<!doctype html><html lang="de"><style>html,body{height:100%;margin:0}body{display:grid;place-items:center;background:#080b10;color:#7d8590;font:16px system-ui;text-align:center}.box{max-width:520px;padding:30px}h2{color:#e6edf3}</style><body><div class="box"><h2>${selected.label}</h2><p>Dieses Repository hat keine eigene Web-Preview. Du kannst es vollständig im Claude-Chat bearbeiten und anschließend nach main pushen.</p></div></body></html>`;
+        preview.srcdoc = `<!doctype html><html lang="de"><style>html,body{height:100%;margin:0}body{display:grid;place-items:center;background:#080b10;color:#7d8590;font:16px system-ui;text-align:center}.box{max-width:520px;padding:30px}h2{color:#e6edf3}</style><body><div class="box"><h2>${selected.label}</h2><p>Dieses Repository hat keine eigene Web-Preview. Du kannst es vollständig im Claude-Chat bearbeiten und anschließend über Publish veröffentlichen.</p></div></body></html>`;
         openPreview.hidden = true;
         document.getElementById('reloadPreview').hidden = true;
         previewLabel.textContent = `${selected.label} · Code-Repository ohne Web-Preview`;
@@ -662,24 +861,17 @@
   document.getElementById('reloadPreview').addEventListener('click', () => {
     preview.src = preview.src;
   });
-  document.getElementById('pushMain').addEventListener('click', async event => {
-    const button = event.currentTarget;
-    if (!confirm('Alle Änderungen der Preview committen und nach main pushen?')) return;
-    button.disabled = true;
-    button.textContent = 'Pushe...';
-    try {
-      const result = await api('/api/claude/push-main', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: activeChat?.title || 'Update aus Dashboard Preview', project: activeChat?.project || project.value }),
-      });
-      button.textContent = result.noChanges ? 'Keine Änderungen' : `Gepusht${result.commit ? ` · ${result.commit}` : ''}`;
-    } catch (error) {
-      button.textContent = 'Push fehlgeschlagen';
-      alert(error.message);
-    } finally {
-      setTimeout(() => { button.disabled = false; button.textContent = 'Zu main pushen'; }, 3500);
-    }
+  publishOpen.addEventListener('click', openPublishPanel);
+  publishClose.addEventListener('click', closePublishPanel);
+  publishConfirm.addEventListener('click', () => {
+    if (publishConfirm.textContent === 'Fertig') closePublishPanel();
+    else runPublish();
+  });
+  publishOverlay.addEventListener('click', event => {
+    if (event.target === publishOverlay) closePublishPanel();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !publishOverlay.hidden) closePublishPanel();
   });
 
   // ─── User-System ────────────────────────────────────────────────────────────

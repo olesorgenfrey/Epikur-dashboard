@@ -14,9 +14,11 @@ const crypto = require('crypto');
 
 const app = express();
 const PORT = 4000;
+const SERVER_STARTED_AT = new Date().toISOString();
 const CHAT_DATA_DIR = path.join(__dirname, 'data');
 const CHAT_DATA_FILE = path.join(CHAT_DATA_DIR, 'chats.json');
 const USERS_FILE = path.join(CHAT_DATA_DIR, 'users.json');
+const SESSIONS_FILE = path.join(CHAT_DATA_DIR, 'sessions.json');
 const GBRAIN_BIN = '/root/.bun/bin/gbrain';
 const GBRAIN_ENV = { ...process.env, HOME: '/root', PATH: '/root/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' };
 const CODEX_BIN = '/usr/bin/codex';
@@ -55,6 +57,9 @@ const PROJECTS = {
     service: 'epikur-preview.service',
     previewUrl: 'https://dashboard.praxis-sorgenfrey.de:8443',
     healthUrl: 'http://127.0.0.1:3010/',
+    liveUrl: 'https://epikur.praxis-sorgenfrey.de',
+    liveHealthUrl: 'http://127.0.0.1:3000/',
+    deployCommand: '/home/ole/bin/epikur-auto-deploy',
   },
   'epikur-patient': {
     id: 'epikur-patient',
@@ -63,12 +68,18 @@ const PROJECTS = {
     service: 'epikur-patient-preview.service',
     previewUrl: 'https://dashboard.praxis-sorgenfrey.de:8444',
     healthUrl: 'http://127.0.0.1:3011/',
+    liveUrl: 'https://patienten.praxis-sorgenfrey.de',
+    liveHealthUrl: 'http://127.0.0.1:3001/',
+    deployCommand: '/home/ole/bin/epikur-patient-auto-deploy',
   },
   'epikur-dashboard': {
     id: 'epikur-dashboard',
     label: 'Epikur Dashboard',
     repo: '/home/ole/epikur-workspaces/epikur-dashboard',
     previewUrl: 'https://dashboard.praxis-sorgenfrey.de',
+    liveUrl: 'https://dashboard.praxis-sorgenfrey.de',
+    liveHealthUrl: 'https://dashboard.praxis-sorgenfrey.de/',
+    deployType: 'dashboard',
   },
   'epikur-produkt': {
     id: 'epikur-produkt',
@@ -88,7 +99,7 @@ function getProject(id) {
 
 function runShell(command, timeout = 90_000) {
   return new Promise((resolve, reject) => {
-    exec(command, { timeout, shell: '/bin/bash' }, (error, stdout, stderr) => {
+    exec(command, { timeout, shell: '/bin/bash', maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
       if (error) {
         error.stderr = stderr;
         reject(error);
@@ -101,13 +112,109 @@ function runShell(command, timeout = 90_000) {
 
 function checkHttp(url) {
   return new Promise((resolve) => {
-    const request = http.get(url, { timeout: 5_000 }, (response) => {
+    const client = url.startsWith('https:') ? https : http;
+    const options = url.startsWith('https:') ? { timeout: 5_000, rejectUnauthorized: false } : { timeout: 5_000 };
+    const request = client.get(url, options, (response) => {
       response.resume();
       resolve(response.statusCode >= 200 && response.statusCode < 500);
     });
     request.on('timeout', () => request.destroy());
     request.on('error', () => resolve(false));
   });
+}
+
+function runGit(repo, args, timeout = 5 * 60 * 1000) {
+  return new Promise((resolve, reject) => {
+    execFile(
+      '/usr/bin/git',
+      args,
+      {
+        cwd: repo,
+        env: { ...process.env, HOME: '/home/ole' },
+        timeout,
+        maxBuffer: 10 * 1024 * 1024,
+      },
+      (error, stdout, stderr) => {
+        if (error) {
+          error.stderr = stderr;
+          reject(error);
+          return;
+        }
+        resolve(stdout.trim());
+      }
+    );
+  });
+}
+
+async function hasStagedChanges(repo) {
+  try {
+    await runGit(repo, ['diff', '--cached', '--quiet'], 20_000);
+    return false;
+  } catch (error) {
+    if (error.code === 1) return true;
+    throw error;
+  }
+}
+
+async function publishToMain(project, commitMessage) {
+  await runGit(project.repo, ['add', '-A']);
+  const committed = await hasStagedChanges(project.repo);
+  if (committed) await runGit(project.repo, ['commit', '-m', commitMessage]);
+
+  await runGit(project.repo, ['fetch', 'origin', 'main']);
+  try {
+    await runGit(project.repo, ['rebase', 'origin/main']);
+  } catch (error) {
+    try { await runGit(project.repo, ['rebase', '--abort'], 20_000); } catch {}
+    throw error;
+  }
+
+  const filesOutput = await runGit(project.repo, ['diff', '--name-only', 'origin/main...HEAD']);
+  const ahead = Number(await runGit(project.repo, ['rev-list', '--count', 'origin/main..HEAD'])) || 0;
+  if (ahead > 0) await runGit(project.repo, ['push', 'origin', 'HEAD:main']);
+
+  return {
+    commit: await runGit(project.repo, ['rev-parse', '--short', 'HEAD']),
+    fullCommit: await runGit(project.repo, ['rev-parse', 'HEAD']),
+    committed,
+    pushedCommits: ahead,
+    files: filesOutput ? filesOutput.split('\n').filter(Boolean) : [],
+    noChanges: !committed && ahead === 0,
+  };
+}
+
+function filesDiffer(first, second) {
+  try {
+    return !fs.existsSync(second) || !fs.readFileSync(first).equals(fs.readFileSync(second));
+  } catch {
+    return true;
+  }
+}
+
+async function deployProject(project) {
+  if (!project.liveUrl) return { deployed: false, live: false };
+
+  let restartRequired = false;
+  if (project.deployCommand) {
+    await runShell(project.deployCommand, 15 * 60 * 1000);
+  } else if (project.deployType === 'dashboard') {
+    const sourceServer = path.join(project.repo, 'server/webssh-server.js');
+    const activeServer = '/home/ole/webssh/server.js';
+    restartRequired = filesDiffer(sourceServer, activeServer);
+    const command = [
+      'set -e',
+      `sudo /usr/bin/install -o www-data -g www-data -m 644 ${JSON.stringify(path.join(project.repo, 'index.html'))} /var/www/epikur-dashboard/index.html`,
+      `sudo /usr/bin/install -o www-data -g www-data -m 644 ${JSON.stringify(path.join(project.repo, 'landing.html'))} /var/www/epikur-dashboard/landing.html`,
+      `sudo /usr/bin/rsync -a --delete ${JSON.stringify(path.join(project.repo, 'assets/'))} /var/www/epikur-dashboard/assets/`,
+      `sudo /usr/bin/rsync -a --delete ${JSON.stringify(path.join(project.repo, 'images/'))} /var/www/epikur-dashboard/images/`,
+      `/usr/bin/install -o ole -g ole -m 644 ${JSON.stringify(path.join(project.repo, 'server/chat.html'))} /home/ole/webssh/public/chat.html`,
+      `/usr/bin/install -o ole -g ole -m 644 ${JSON.stringify(sourceServer)} ${JSON.stringify(activeServer)}`,
+    ].join(' && ');
+    await runShell(command, 2 * 60 * 1000);
+  }
+
+  await waitForPreview(project.liveHealthUrl || project.liveUrl, 3 * 60 * 1000);
+  return { deployed: true, live: true, liveUrl: project.liveUrl, restartRequired };
 }
 
 async function waitForPreview(url, timeout = 90_000) {
@@ -120,6 +227,8 @@ async function waitForPreview(url, timeout = 90_000) {
 }
 
 let projectActivationQueue = Promise.resolve();
+let publishQueue = Promise.resolve();
+let deployQueue = Promise.resolve();
 
 function getUsageSummary(result) {
   const modelUsage = Object.values(result.modelUsage || {});
@@ -399,12 +508,65 @@ const SSL_OPTIONS = {
 
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 
+class JsonSessionStore extends session.Store {
+  read() {
+    try { return JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8')); } catch { return {}; }
+  }
+
+  write(sessions) {
+    fs.mkdirSync(CHAT_DATA_DIR, { recursive: true });
+    const temporaryFile = `${SESSIONS_FILE}.tmp`;
+    fs.writeFileSync(temporaryFile, JSON.stringify(sessions), { mode: 0o600 });
+    fs.renameSync(temporaryFile, SESSIONS_FILE);
+  }
+
+  get(sid, callback) {
+    try {
+      const sessions = this.read();
+      const entry = sessions[sid];
+      if (!entry) return callback(null, null);
+      if (entry.expiresAt && entry.expiresAt <= Date.now()) {
+        delete sessions[sid];
+        this.write(sessions);
+        return callback(null, null);
+      }
+      callback(null, entry.session);
+    } catch (error) { callback(error); }
+  }
+
+  set(sid, value, callback = () => {}) {
+    try {
+      const sessions = this.read();
+      sessions[sid] = {
+        expiresAt: value.cookie?.expires ? new Date(value.cookie.expires).getTime() : null,
+        session: value,
+      };
+      this.write(sessions);
+      callback(null);
+    } catch (error) { callback(error); }
+  }
+
+  destroy(sid, callback = () => {}) {
+    try {
+      const sessions = this.read();
+      delete sessions[sid];
+      this.write(sessions);
+      callback(null);
+    } catch (error) { callback(error); }
+  }
+
+  touch(sid, value, callback = () => {}) {
+    this.set(sid, value, callback);
+  }
+}
+
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use('/public', express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(session({
   secret: SESSION_SECRET,
+  store: new JsonSessionStore(),
   resave: false,
   saveUninitialized: false,
   cookie: { secure: true, httpOnly: true, maxAge: 365 * 24 * 60 * 60 * 1000 },
@@ -528,6 +690,72 @@ app.delete('/api/admin/users/:id', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// --- Preview-Einstellungen (per User) ---
+const PREVIEW_SETTINGS_FILE = path.join(CHAT_DATA_DIR, 'preview-settings.json');
+function readPreviewSettings() {
+  try { return JSON.parse(fs.readFileSync(PREVIEW_SETTINGS_FILE, 'utf8')); } catch { return {}; }
+}
+function writePreviewSettings(s) {
+  fs.mkdirSync(CHAT_DATA_DIR, { recursive: true });
+  fs.writeFileSync(PREVIEW_SETTINGS_FILE, JSON.stringify(s, null, 2), { mode: 0o600 });
+}
+function getActivePreviewSettings(project) {
+  try {
+    const c = fs.readFileSync(`/etc/systemd/system/${project.service}`, 'utf8');
+    return {
+      devMode: /^Environment=DEV_MODE=true$/m.test(c),
+      publicDevMode: /^Environment=NEXT_PUBLIC_DEV_MODE=true$/m.test(c),
+    };
+  } catch { return { devMode: false, publicDevMode: false }; }
+}
+
+app.get('/api/preview/settings', requireApiAuth, (req, res) => {
+  const project = PROJECTS['epikur'];
+  if (!project?.service) return res.status(404).json({ error: 'Kein Preview-Service.' });
+  const username = req.session.username;
+  const all = readPreviewSettings();
+  const active = getActivePreviewSettings(project);
+  const userSettings = all[username] || active;
+  res.json({
+    devMode: userSettings.devMode,
+    publicDevMode: userSettings.publicDevMode,
+    active,
+    appliedBy: all._appliedBy || null,
+    appliedAt: all._appliedAt || null,
+  });
+});
+
+app.post('/api/preview/settings', requireApiAuth, async (req, res) => {
+  const project = PROJECTS['epikur'];
+  if (!project?.service) return res.status(404).json({ error: 'Kein Preview-Service.' });
+  const { devMode, publicDevMode } = req.body;
+  if (typeof devMode !== 'boolean' || typeof publicDevMode !== 'boolean') {
+    return res.status(400).json({ error: 'Ungültige Parameter.' });
+  }
+  const username = req.session.username;
+  const now = new Date().toISOString();
+  const all = readPreviewSettings();
+  all[username] = { devMode, publicDevMode };
+  all._appliedBy = username;
+  all._appliedAt = now;
+  writePreviewSettings(all);
+  const serviceFile = `/etc/systemd/system/${project.service}`;
+  try {
+    let content = fs.readFileSync(serviceFile, 'utf8');
+    content = content.replace(/^Environment=DEV_MODE=.*$/m, `Environment=DEV_MODE=${devMode}`);
+    content = content.replace(/^Environment=NEXT_PUBLIC_DEV_MODE=.*$/m, `Environment=NEXT_PUBLIC_DEV_MODE=${publicDevMode}`);
+    const tmpFile = `/tmp/prev-svc-${Date.now()}.tmp`;
+    fs.writeFileSync(tmpFile, content, 'utf8');
+    await runShell(`sudo cp ${tmpFile} ${serviceFile} && rm -f ${tmpFile}`);
+    await runShell('sudo systemctl daemon-reload && sudo systemctl restart epikur-preview.service');
+    if (project.healthUrl) await waitForPreview(project.healthUrl, 90_000);
+    res.json({ ok: true, appliedBy: username, appliedAt: now });
+  } catch (e) {
+    console.error('Preview settings update failed:', e);
+    res.status(500).json({ error: 'Einstellungen konnten nicht gespeichert werden.' });
+  }
+});
+
 app.get('/terminal', requireAuth, (req, res) => {
   res.redirect('/chat');
 });
@@ -611,12 +839,18 @@ app.post('/api/codex/logout', requireApiAuth, (req, res) => {
 });
 
 app.get('/api/claude/projects', requireApiAuth, (req, res) => {
-  res.json(Object.values(PROJECTS).map(({ id, label, previewUrl }) => ({
+  res.json(Object.values(PROJECTS).map(({ id, label, previewUrl, liveUrl }) => ({
     id,
     label,
     previewUrl: previewUrl || null,
     hasPreview: Boolean(previewUrl),
+    liveUrl: liveUrl || null,
+    canDeploy: Boolean(liveUrl),
   })));
+});
+
+app.get('/api/claude/server-health', (req, res) => {
+  res.json({ ok: true, startedAt: SERVER_STARTED_AT });
 });
 
 app.post('/api/claude/projects/:id/activate', requireApiAuth, (req, res) => {
@@ -664,42 +898,50 @@ app.get('/api/claude/git-status', requireApiAuth, (req, res) => {
   );
 });
 
-app.post('/api/claude/push-main', requireApiAuth, (req, res) => {
-  const project = getProject(req.body.project);
+app.post('/api/claude/publish', requireApiAuth, (req, res) => {
+  const project = PROJECTS[req.body?.project];
+  if (!project) return res.status(404).json({ error: 'Projekt nicht gefunden.', stage: 'push' });
   const requestedMessage = typeof req.body.message === 'string' ? req.body.message.trim() : '';
   const commitMessage = (requestedMessage || 'feat: update from dashboard preview')
     .replace(/[\r\n]+/g, ' ')
     .slice(0, 120);
-  const command = [
-    'set -e',
-    'git add -A',
-    'if git diff --cached --quiet; then echo "__NO_CHANGES__"; exit 0; fi',
-    `git commit -m ${JSON.stringify(commitMessage)}`,
-    'git fetch origin main',
-    'git rebase origin/main',
-    'git push origin HEAD:main',
-  ].join(' && ');
 
-  exec(
-    command,
-    {
-      cwd: project.repo,
-      env: { ...process.env, HOME: '/home/ole' },
-      timeout: 5 * 60 * 1000,
-      maxBuffer: 5 * 1024 * 1024,
-      shell: '/bin/bash',
-    },
-    (error, stdout, stderr) => {
-      if (error) {
-        exec('git rebase --abort >/dev/null 2>&1 || true', { cwd: project.repo });
-        console.error('Push to main failed:', stderr || error.message);
-        return res.status(500).json({ error: 'Push nach main fehlgeschlagen. Details stehen im Server-Log.' });
+  const publish = publishQueue.catch(() => {}).then(() => publishToMain(project, commitMessage));
+  publishQueue = publish;
+  publish
+    .then((result) => res.json({ ok: true, project: project.id, ...result }))
+    .catch((error) => {
+      console.error('Publish to main failed:', error.stderr || error.message);
+      res.status(500).json({
+        error: 'Veröffentlichung nach main fehlgeschlagen. Details stehen im Server-Log.',
+        stage: 'push',
+      });
+    });
+});
+
+app.post('/api/claude/deploy', requireApiAuth, (req, res) => {
+  const project = PROJECTS[req.body?.project];
+  if (!project) return res.status(404).json({ error: 'Projekt nicht gefunden.', stage: 'deploy' });
+  const deploy = deployQueue.catch(() => {}).then(() => deployProject(project));
+  deployQueue = deploy;
+  deploy
+    .then((result) => {
+      res.json({ ok: true, project: project.id, serverStartedAt: SERVER_STARTED_AT, ...result });
+      if (result.restartRequired) {
+        setTimeout(() => {
+          exec('sudo /usr/bin/systemctl restart webssh.service', (error, stdout, stderr) => {
+            if (error) console.error('WebSSH restart failed:', stderr || error.message);
+          });
+        }, 750);
       }
-      if (stdout.includes('__NO_CHANGES__')) return res.json({ ok: true, noChanges: true });
-      const match = stdout.match(/\[[^\]]+ ([0-9a-f]+)\]/);
-      res.json({ ok: true, commit: match?.[1] || null });
-    }
-  );
+    })
+    .catch((error) => {
+      console.error('Production deploy failed:', error.stderr || error.message);
+      res.status(500).json({
+        error: 'Deployment fehlgeschlagen. main wurde bereits aktualisiert.',
+        stage: 'deploy',
+      });
+    });
 });
 
 const chatLimiter = rateLimit({

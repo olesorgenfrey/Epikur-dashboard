@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SOURCE_REPO=/home/ole/epikur
-DEPLOY_REPO=/home/ole/epikur-deploy
-STATE_DIR=/home/ole/.local/state/epikur-auto-deploy
+SOURCE_REPO=/home/ole/epikur-patient
+DEPLOY_REPO=/home/ole/epikur-patient-deploy
+STATE_DIR=/home/ole/.local/state/epikur-patient-auto-deploy
 STATE_FILE="$STATE_DIR/deployed-main"
 LOCK_FILE="$STATE_DIR/deploy.lock"
 
@@ -15,7 +15,7 @@ git -C "$SOURCE_REPO" fetch --quiet origin main
 remote_commit=$(git -C "$SOURCE_REPO" rev-parse origin/main)
 deployed_commit=$(cat "$STATE_FILE" 2>/dev/null || true)
 
-if [[ "$remote_commit" == "$deployed_commit" ]] && curl -sS -o /dev/null http://127.0.0.1:3000/; then
+if [[ "$remote_commit" == "$deployed_commit" ]] && curl -sS -o /dev/null http://127.0.0.1:3001/; then
   exit 0
 fi
 
@@ -45,16 +45,16 @@ restart_preview() {
 trap restart_preview EXIT
 
 cd "$DEPLOY_REPO"
-docker compose -p epikur up -d --build app
+docker compose -p epikur-patient up -d --build app
 
 for _ in $(seq 1 60); do
-  if curl -sS -o /dev/null http://127.0.0.1:3000/; then
+  if curl -sS -o /dev/null http://127.0.0.1:3001/; then
     printf '%s\n' "$remote_commit" > "$STATE_FILE"
-    echo "Deployed main commit $remote_commit"
+    echo "Deployed patient main commit $remote_commit"
     exit 0
   fi
   sleep 2
 done
 
-echo "Deployment healthcheck failed for $remote_commit" >&2
+echo "Patient deployment healthcheck failed for $remote_commit" >&2
 exit 1
