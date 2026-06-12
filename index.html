@@ -19,8 +19,7 @@
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',-apple-system,sans-serif;color:var(--t);background:#06070A;min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
-.bg{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center;transition:opacity 800ms var(--ease),transform 1200ms var(--ease);transform:scale(1.04)}
-.bg.tasks{background-position:center 20%}
+.bg{position:fixed;inset:0;z-index:0;background-color:#06070A;background-size:contain;background-position:center;background-repeat:no-repeat;transition:opacity 800ms var(--ease),transform 1200ms var(--ease);transform:scale(1.04)}
 .bg.code{background-image:none!important;background:#06070A}
 .bg.on{opacity:1;transform:scale(1)}.bg.off{opacity:0}
 .bgov{position:fixed;inset:0;z-index:1;background:linear-gradient(120deg,rgba(6,7,10,.85) 0%,rgba(6,7,10,.55) 50%,rgba(6,7,10,.75) 100%);pointer-events:none}
