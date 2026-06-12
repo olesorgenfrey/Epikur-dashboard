@@ -958,7 +958,7 @@ function AiChat({tasks,setTasks,persons}){
     setLoading(true);
     const taskCtx=buildTaskCtx(tasks,persons);
     try{
-      const r=await fetch(`/api/${provider}/chat`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversationId:id,message:taskCtx.context+text,model,effort})});
+      const r=await fetch(`/api/${provider}/chat`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversationId:id,message:text,context:taskCtx.context,model,effort})});
       const d=await r.json();
       if(!r.ok){
         setMsgs(ms=>[...ms,{role:'assistant',content:d.error||`${provider==='codex'?'Codex':'Claude'} konnte die Anfrage nicht ausführen.`,loginUrl:d.loginUrl||null,loginProvider:d.loginProvider||null}]);

@@ -1,6 +1,6 @@
 const https = require('https');
 const http = require('http');
-const { exec, execFile } = require('child_process');
+const { exec, execFile, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
@@ -16,6 +16,12 @@ const app = express();
 const PORT = 4000;
 const CHAT_DATA_DIR = path.join(__dirname, 'data');
 const CHAT_DATA_FILE = path.join(CHAT_DATA_DIR, 'chats.json');
+const USERS_FILE = path.join(CHAT_DATA_DIR, 'users.json');
+const GBRAIN_BIN = '/root/.bun/bin/gbrain';
+const GBRAIN_ENV = { ...process.env, HOME: '/root', PATH: '/root/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' };
+const CODEX_BIN = '/usr/bin/codex';
+const CODEX_HOME_ROOT = path.join(CHAT_DATA_DIR, 'codex-users');
+const CODEX_PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 const CHAT_MODELS = new Set(['sonnet', 'opus', 'haiku']);
 const CHAT_EFFORTS = new Set(['low', 'medium', 'high', 'xhigh']);
 const SERVER_SYSTEM_PROMPT = [
@@ -27,6 +33,19 @@ const SERVER_SYSTEM_PROMPT = [
   'Aktionen ohne eindeutigen Auftrag aus. Gib niemals Passwörter, Tokens, private Schlüssel oder .env-Inhalte aus.',
   'Das ausgewählte Repository ist dein Arbeitsverzeichnis. Vor Git-Änderungen prüfst du git status und',
   'überschreibst keine fremden uncommittierten Änderungen.',
+  'Du hast Zugriff auf gbrain (Langzeit-Gedächtnis). Nutze das gbrain MCP-Tool um vergangene Gespräche,',
+  'Entscheidungen und Kontext zu durchsuchen wenn relevant.',
+  'Du hast Zugriff auf GitHub via MCP (github-Tool). GitHub-Username: olesorgenfrey.',
+  'Repos: Epikur-dashboard, epikur-produkt, epikur-werbung, epikur, epikur-patient.',
+  'Nutze das github-MCP-Tool um Issues, PRs, Commits, Branches und Dateiinhalte direkt von GitHub abzurufen.',
+  'Du kannst Tasks im Practio-Dashboard verwalten. Wenn du einen Task erstellen oder ändern möchtest,',
+  'füge am Ende deiner Antwort <practio_action>-Blöcke im JSON-Format ein:',
+  'Neuen Task erstellen: <practio_action>{"action":"create_task","text":"Task-Text","assignee_id":"PERSON_ID"}</practio_action>',
+  'Task als erledigt markieren: <practio_action>{"action":"toggle_task","id":"TASK_ID","done":true}</practio_action>',
+  'Task wieder öffnen: <practio_action>{"action":"toggle_task","id":"TASK_ID","done":false}</practio_action>',
+  'Task löschen: <practio_action>{"action":"delete_task","id":"TASK_ID"}</practio_action>',
+  'Die aktuellen Personen-IDs und Task-IDs werden dir vom Nutzer im Kontext mitgeteilt.',
+  'Füge die <practio_action>-Blöcke nur ein wenn du aktiv Tasks verwalten sollst – nicht bei normalen Antworten.',
 ].join(' ');
 const PROJECTS = {
   epikur: {
@@ -49,6 +68,7 @@ const PROJECTS = {
     id: 'epikur-dashboard',
     label: 'Epikur Dashboard',
     repo: '/home/ole/epikur-workspaces/epikur-dashboard',
+    previewUrl: 'https://dashboard.praxis-sorgenfrey.de',
   },
   'epikur-produkt': {
     id: 'epikur-produkt',
@@ -137,6 +157,239 @@ function findChat(chats, id) {
   return chats.find((chat) => chat.id === id);
 }
 
+function findUserChat(chats, id, userId) {
+  return chats.find((chat) => chat.id === id && chat.userId === userId);
+}
+
+const activeClaudeChats = new Map();
+const activeCodexChats = new Map();
+const codexLoginProcesses = new Map();
+
+function claudeSessionExists(project, conversationId) {
+  const projectKey = project.repo.replace(/[^a-zA-Z0-9-]/g, '-');
+  const sessionFile = path.join(
+    '/home/ole/.claude/projects',
+    projectKey,
+    `${conversationId}.jsonl`
+  );
+  return fs.existsSync(sessionFile);
+}
+
+function claudeChatBusy(res, conversationId) {
+  if (!activeClaudeChats.has(conversationId)) return false;
+  res.status(409).json({ error: 'Claude arbeitet bereits in diesem Chat.' });
+  return true;
+}
+
+function claudeSystemPrompt(req) {
+  const username = req.session?.username || 'unbekannt';
+  return [
+    SERVER_SYSTEM_PROMPT,
+    `Der aktuell angemeldete Practio-Nutzer ist "${username}".`,
+    'Beziehe dich standardmäßig nur auf diesen Nutzer und seine eigenen Tasks.',
+    'Analysiere, erwähne oder ändere Tasks anderer Personen nur, wenn die aktuelle Nutzernachricht',
+    'ausdrücklich nach einer anderen Person, dem Team oder allen Tasks fragt.',
+    'Ohne eine solche ausdrückliche Aufforderung darfst du den Fokus nicht auf fremde Tasks verlagern.',
+  ].join(' ');
+}
+
+function parseChatInput(body = {}) {
+  let message = typeof body.message === 'string' ? body.message.trim() : '';
+  let context = typeof body.context === 'string' ? body.context.trim() : '';
+  const legacyContext = message.match(/^(\[Practio Kontext\][\s\S]*?\[\/Practio Kontext\])\s*/);
+  if (legacyContext) {
+    if (!context) context = legacyContext[1];
+    message = message.slice(legacyContext[0].length).trim();
+  }
+  return {
+    message,
+    context,
+    prompt: context ? `${context}\n\n${message}` : message,
+  };
+}
+
+function codexHomeForUser(userId) {
+  const dir = path.join(CODEX_HOME_ROOT, userId);
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  try { fs.chmodSync(dir, 0o700); } catch {}
+  return dir;
+}
+
+function codexEnv(req) {
+  return {
+    ...process.env,
+    HOME: '/home/ole',
+    CODEX_HOME: codexHomeForUser(req.session.userId),
+    PATH: CODEX_PATH,
+    NO_COLOR: '1',
+  };
+}
+
+function codexLoginStatus(req, callback) {
+  execFile(
+    CODEX_BIN,
+    ['login', 'status'],
+    { env: codexEnv(req), timeout: 20_000, maxBuffer: 1024 * 1024 },
+    (error, stdout, stderr) => {
+      callback(null, {
+        loggedIn: !error && /logged in/i.test(stdout),
+        method: !error ? stdout.trim() : null,
+        error: error ? (stderr || stdout || error.message).trim() : null,
+      });
+    }
+  );
+}
+
+function stripAnsi(value) {
+  return value.replace(/\x1b\[[0-9;]*m/g, '');
+}
+
+function finishCodexLoginWaiters(state, error) {
+  const waiters = state.waiters.splice(0);
+  waiters.forEach((waiter) => waiter(error, state));
+}
+
+function startCodexDeviceLogin(req, callback) {
+  const userId = req.session.userId;
+  const existing = codexLoginProcesses.get(userId);
+  if (existing?.url && existing?.code) return callback(null, existing);
+  if (existing) {
+    existing.waiters.push(callback);
+    return;
+  }
+
+  const state = {
+    child: null,
+    output: '',
+    url: null,
+    code: null,
+    waiters: [callback],
+  };
+  const child = spawn(CODEX_BIN, ['login', '--device-auth'], {
+    env: codexEnv(req),
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  state.child = child;
+  codexLoginProcesses.set(userId, state);
+
+  const consume = (chunk) => {
+    state.output += stripAnsi(chunk.toString());
+    if (state.output.length > 30_000) state.output = state.output.slice(-30_000);
+    state.url ||= state.output.match(/https:\/\/auth\.openai\.com\/codex\/device/)?.[0] || null;
+    state.code ||= state.output.match(/\b[A-Z0-9]{4,8}-[A-Z0-9]{4,8}\b/)?.[0] || null;
+    if (state.url && state.code && state.waiters.length) finishCodexLoginWaiters(state, null);
+  };
+  child.stdout.on('data', consume);
+  child.stderr.on('data', consume);
+  child.on('error', (error) => {
+    if (state.waiters.length) finishCodexLoginWaiters(state, error);
+    codexLoginProcesses.delete(userId);
+  });
+  child.on('close', (code) => {
+    state.child = null;
+    if (state.waiters.length) {
+      finishCodexLoginWaiters(state, new Error(code === 0 ? 'Login beendet' : 'Login fehlgeschlagen'));
+    }
+    setTimeout(() => {
+      if (codexLoginProcesses.get(userId) === state) codexLoginProcesses.delete(userId);
+    }, 60_000);
+  });
+
+  setTimeout(() => {
+    if (!state.url || !state.code) {
+      try { child.kill('SIGTERM'); } catch {}
+      if (state.waiters.length) finishCodexLoginWaiters(state, new Error('Device-Code nicht verfügbar'));
+      codexLoginProcesses.delete(userId);
+    }
+  }, 20_000);
+}
+
+function parseCodexModels(stdout) {
+  const catalog = JSON.parse(stdout);
+  return (catalog.models || [])
+    .filter((model) => model.visibility === 'list' && !model.upgrade)
+    .map((model) => ({
+      id: model.slug,
+      label: model.display_name || model.slug,
+      description: model.description || '',
+      defaultEffort: model.default_reasoning_level || 'medium',
+      efforts: (model.supported_reasoning_levels || []).map((entry) => entry.effort),
+    }));
+}
+
+function loadCodexModels(req, callback, bundled = false) {
+  const args = ['debug', 'models'];
+  if (bundled) args.push('--bundled');
+  execFile(
+    CODEX_BIN,
+    args,
+    { env: codexEnv(req), timeout: 30_000, maxBuffer: 10 * 1024 * 1024 },
+    (error, stdout) => {
+      if (error && !bundled) return loadCodexModels(req, callback, true);
+      if (error) return callback(error);
+      try { callback(null, parseCodexModels(stdout)); }
+      catch (parseError) { callback(parseError); }
+    }
+  );
+}
+
+function parseCodexResult(stdout) {
+  let threadId = null;
+  let response = '';
+  let usage = null;
+  let failure = null;
+  for (const line of stdout.split('\n')) {
+    if (!line.trim()) continue;
+    let event;
+    try { event = JSON.parse(line); } catch { continue; }
+    if (event.type === 'thread.started') threadId = event.thread_id;
+    if (event.type === 'item.completed' && event.item?.type === 'agent_message') {
+      response = event.item.text || response;
+    }
+    if (event.type === 'turn.completed') usage = event.usage || null;
+    if (event.type === 'turn.failed' || event.type === 'error') {
+      failure = event.error?.message || event.message || 'Codex-Ausführung fehlgeschlagen.';
+    }
+  }
+  return { threadId, response, usage, failure };
+}
+
+function readUsers() {
+  try { return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')); } catch { return []; }
+}
+
+function writeUsers(users) {
+  fs.mkdirSync(CHAT_DATA_DIR, { recursive: true });
+  const tmp = `${USERS_FILE}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(users, null, 2), { mode: 0o600 });
+  fs.renameSync(tmp, USERS_FILE);
+}
+
+function gbrainCapture(username, project, chatTitle, chatId, message, response) {
+  const tmpFile = `/tmp/gbrain-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.md`;
+  const content = [
+    `# ${chatTitle}`,
+    '',
+    `**Benutzer:** ${username}`,
+    `**Projekt:** ${project}`,
+    `**Datum:** ${new Date().toISOString()}`,
+    `**Chat-ID:** ${chatId}`,
+    '',
+    '## Prompt',
+    '',
+    message,
+    '',
+    '## Antwort',
+    '',
+    response,
+  ].join('\n');
+  fs.writeFileSync(tmpFile, content, { mode: 0o600 });
+  exec(`${GBRAIN_BIN} capture --file ${tmpFile}`, { env: GBRAIN_ENV, timeout: 30_000 }, (err) => {
+    fs.unlink(tmpFile, () => {});
+    if (err) console.error('gbrain capture failed:', err.message);
+  });
+}
+
 const PASSWORD_HASH = bcrypt.hashSync(process.env.WEBSSH_PASSWORD || 'ChangeMe123!', 10);
 
 const SSL_OPTIONS = {
@@ -154,7 +407,7 @@ app.use(session({
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: true, httpOnly: true, maxAge: 8 * 60 * 60 * 1000 },
+  cookie: { secure: true, httpOnly: true, maxAge: 365 * 24 * 60 * 60 * 1000 },
 }));
 
 const loginLimiter = rateLimit({
@@ -164,25 +417,23 @@ const loginLimiter = rateLimit({
 });
 
 function requireAuth(req, res, next) {
-  if (req.session && req.session.authenticated) return next();
-  res.redirect('/terminal-login');
+  if (req.session) req.session.authenticated = true;
+  next();
 }
 
 function requireApiAuth(req, res, next) {
-  if (req.session && req.session.authenticated) return next();
-  res.status(401).json({ error: 'WebSSH-Sitzung abgelaufen.' });
+  if (!req.session?.userId || !req.session.username) {
+    return res.status(401).json({ error: 'Nicht angemeldet.' });
+  }
+  const user = readUsers().find((entry) => entry.id === req.session.userId);
+  if (!user || user.status !== 'approved') {
+    return res.status(401).json({ error: 'Nicht angemeldet.' });
+  }
+  next();
 }
 
 app.get('/', (req, res) => {
-  if (req.query.reauth === '1' && req.session) {
-    return req.session.destroy(() => {
-      res.set('Cache-Control', 'no-store');
-      res.sendFile(path.join(__dirname, 'public/login.html'));
-    });
-  }
-  if (req.session && req.session.authenticated) return res.redirect('/terminal');
-  res.set('Cache-Control', 'no-store');
-  res.sendFile(path.join(__dirname, 'public/login.html'));
+  res.redirect('/terminal');
 });
 
 app.post('/login', loginLimiter, (req, res) => {
@@ -200,11 +451,88 @@ app.post('/logout', (req, res) => {
   res.json({ success: true });
 });
 
+// ─── User-System ─────────────────────────────────────────────────────────────
+function requireAdmin(req, res, next) {
+  if (!req.session.userId) return res.status(401).json({ error: 'Nicht angemeldet.' });
+  const user = readUsers().find((u) => u.id === req.session.userId);
+  if (!user?.isAdmin) return res.status(403).json({ error: 'Keine Admin-Rechte.' });
+  next();
+}
+
+app.get('/api/users/me', (req, res) => {
+  if (!req.session.userId) return res.json({ loggedIn: false });
+  const user = readUsers().find((u) => u.id === req.session.userId);
+  res.json({ loggedIn: true, userId: req.session.userId, username: req.session.username, isAdmin: user?.isAdmin || false });
+});
+
+app.post('/api/users/register', loginLimiter, async (req, res) => {
+  const username = (typeof req.body.username === 'string' ? req.body.username : '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  const password = typeof req.body.password === 'string' ? req.body.password : '';
+  if (username.length < 2) return res.status(400).json({ error: 'Benutzername zu kurz (min. 2 Zeichen).' });
+  if (username.length > 30) return res.status(400).json({ error: 'Benutzername zu lang (max. 30 Zeichen).' });
+  if (password.length < 4) return res.status(400).json({ error: 'Passwort zu kurz (min. 4 Zeichen).' });
+  const users = readUsers();
+  if (users.find((u) => u.username === username)) return res.status(409).json({ error: 'Benutzername bereits vergeben.' });
+  const passwordHash = await bcrypt.hash(password, 10);
+  const user = { id: crypto.randomUUID(), username, passwordHash, isAdmin: false, status: 'pending', createdAt: new Date().toISOString() };
+  users.push(user);
+  writeUsers(users);
+  res.status(201).json({ ok: true, pending: true, message: 'Dein Account wurde erstellt und wartet auf Genehmigung durch den Admin.' });
+});
+
+app.post('/api/users/login', loginLimiter, async (req, res) => {
+  const username = (typeof req.body.username === 'string' ? req.body.username : '').trim().toLowerCase();
+  const password = typeof req.body.password === 'string' ? req.body.password : '';
+  const users = readUsers();
+  const user = users.find((u) => u.username === username);
+  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    return res.status(401).json({ error: 'Falscher Benutzername oder Passwort.' });
+  }
+  if (user.status === 'pending') {
+    return res.status(403).json({ error: 'Dein Account wartet noch auf Genehmigung durch den Admin.' });
+  }
+  req.session.userId = user.id;
+  req.session.username = user.username;
+  res.json({ ok: true, username: user.username, isAdmin: user.isAdmin || false });
+});
+
+app.post('/api/users/logout', (req, res) => {
+  req.session.userId = null;
+  req.session.username = null;
+  res.json({ ok: true });
+});
+
+// ─── Admin-API ────────────────────────────────────────────────────────────────
+app.get('/api/admin/users/pending', requireAdmin, (req, res) => {
+  const pending = readUsers()
+    .filter((u) => u.status === 'pending')
+    .map(({ id, username, createdAt }) => ({ id, username, createdAt }));
+  res.json(pending);
+});
+
+app.post('/api/admin/users/:id/approve', requireAdmin, (req, res) => {
+  const users = readUsers();
+  const user = users.find((u) => u.id === req.params.id);
+  if (!user) return res.status(404).json({ error: 'User nicht gefunden.' });
+  user.status = 'approved';
+  writeUsers(users);
+  res.json({ ok: true, username: user.username });
+});
+
+app.delete('/api/admin/users/:id', requireAdmin, (req, res) => {
+  const users = readUsers();
+  const user = users.find((u) => u.id === req.params.id);
+  if (!user) return res.status(404).json({ error: 'User nicht gefunden.' });
+  if (user.isAdmin) return res.status(400).json({ error: 'Admin-Account kann nicht gelöscht werden.' });
+  writeUsers(users.filter((u) => u.id !== req.params.id));
+  res.json({ ok: true });
+});
+
 app.get('/terminal', requireAuth, (req, res) => {
   res.redirect('/chat');
 });
 
-app.get('/claude-login', (req, res) => res.sendFile(path.join(__dirname, 'public/claude-login.html')));
+app.get('/claude-login', (req, res) => res.redirect('/claude-auth'));
 
 app.get('/chat', requireAuth, (req, res) => {
   res.set('Cache-Control', 'no-store');
@@ -219,12 +547,67 @@ app.get('/api/claude/status', requireApiAuth, (req, res) => {
     (error, stdout) => {
       if (error) return res.status(503).json({ loggedIn: false, error: 'Claude-Status nicht verfügbar' });
       try {
-        res.json(JSON.parse(stdout));
+        const status = JSON.parse(stdout);
+        const credentials = JSON.parse(
+          fs.readFileSync('/home/ole/.claude/.credentials.json', 'utf8')
+        ).claudeAiOauth;
+        if (credentials?.expiresAt && credentials.expiresAt <= Date.now()) {
+          return res.json({
+            loggedIn: false,
+            error: 'Claude-Anmeldung ist abgelaufen.',
+            loginUrl: '/claude-login',
+          });
+        }
+        res.json(status);
       } catch {
         res.status(503).json({ loggedIn: false, error: 'Ungültige Claude-Antwort' });
       }
     }
   );
+});
+
+app.get('/api/codex/status', requireApiAuth, (req, res) => {
+  codexLoginStatus(req, (_error, status) => {
+    res.json({
+      loggedIn: status.loggedIn,
+      method: status.method,
+      loginProvider: status.loggedIn ? null : 'codex',
+    });
+  });
+});
+
+app.get('/api/codex/models', requireApiAuth, (req, res) => {
+  loadCodexModels(req, (error, models) => {
+    if (error) return res.status(503).json({ error: 'Codex-Modellliste nicht verfügbar.' });
+    res.json({ models });
+  });
+});
+
+app.post('/api/codex/login/start', requireApiAuth, (req, res) => {
+  codexLoginStatus(req, (_statusError, status) => {
+    if (status.loggedIn) return res.json({ loggedIn: true });
+    startCodexDeviceLogin(req, (error, state) => {
+      if (error) return res.status(503).json({ error: 'Codex-Login konnte nicht gestartet werden.' });
+      res.json({
+        loggedIn: false,
+        url: state.url,
+        code: state.code,
+        expiresInSeconds: 15 * 60,
+      });
+    });
+  });
+});
+
+app.post('/api/codex/logout', requireApiAuth, (req, res) => {
+  const state = codexLoginProcesses.get(req.session.userId);
+  if (state?.child) {
+    try { state.child.kill('SIGTERM'); } catch {}
+  }
+  codexLoginProcesses.delete(req.session.userId);
+  execFile(CODEX_BIN, ['logout'], { env: codexEnv(req), timeout: 20_000 }, (error) => {
+    if (error) return res.status(500).json({ error: 'Codex-Abmeldung fehlgeschlagen.' });
+    res.json({ ok: true });
+  });
 });
 
 app.get('/api/claude/projects', requireApiAuth, (req, res) => {
@@ -246,7 +629,6 @@ app.post('/api/claude/projects/:id/activate', requireApiAuth, (req, res) => {
   ].join(' && ');
   const activate = async () => {
     await runShell(command || 'true');
-    if (project.healthUrl) await waitForPreview(project.healthUrl);
     return {
       ok: true,
       project: {
@@ -327,14 +709,18 @@ const chatLimiter = rateLimit({
 });
 
 app.get('/api/claude/chats', requireApiAuth, (req, res) => {
+  const userId = req.session.userId || null;
   const chats = readChats()
+    .filter((chat) => chat.userId === userId)
     .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
-    .map(({ id, title, model, effort, project, createdAt, updatedAt, messages, usage }) => ({
+    .map(({ id, title, provider, model, effort, project, username, createdAt, updatedAt, messages, usage }) => ({
       id,
       title,
+      provider: provider || 'claude',
       model,
       effort: effort || 'medium',
       project: project || 'epikur',
+      username: username || null,
       createdAt,
       updatedAt,
       messageCount: messages.length,
@@ -345,12 +731,21 @@ app.get('/api/claude/chats', requireApiAuth, (req, res) => {
 
 app.post('/api/claude/chats', requireApiAuth, (req, res) => {
   const now = new Date().toISOString();
-  const model = CHAT_MODELS.has(req.body.model) ? req.body.model : 'sonnet';
+  const provider = req.body.provider === 'codex' ? 'codex' : 'claude';
+  const codexModel = typeof req.body.model === 'string' && /^[a-z0-9.-]{2,80}$/i.test(req.body.model)
+    ? req.body.model
+    : 'gpt-5.5';
+  const model = provider === 'codex'
+    ? codexModel
+    : (CHAT_MODELS.has(req.body.model) ? req.body.model : 'sonnet');
   const effort = CHAT_EFFORTS.has(req.body.effort) ? req.body.effort : 'medium';
   const project = PROJECTS[req.body.project] ? req.body.project : 'epikur';
   const chat = {
     id: crypto.randomUUID(),
+    userId: req.session.userId || null,
+    username: req.session.username || null,
     title: 'Neuer Chat',
+    provider,
     model,
     effort,
     project,
@@ -365,21 +760,22 @@ app.post('/api/claude/chats', requireApiAuth, (req, res) => {
 });
 
 app.get('/api/claude/chats/:id', requireApiAuth, (req, res) => {
-  const chat = findChat(readChats(), req.params.id);
+  const chat = findUserChat(readChats(), req.params.id, req.session.userId);
   if (!chat) return res.status(404).json({ error: 'Chat nicht gefunden.' });
   res.json(chat);
 });
 
 app.delete('/api/claude/chats/:id', requireApiAuth, (req, res) => {
   const chats = readChats();
-  const remaining = chats.filter((chat) => chat.id !== req.params.id);
-  if (remaining.length === chats.length) return res.status(404).json({ error: 'Chat nicht gefunden.' });
+  const chat = findUserChat(chats, req.params.id, req.session.userId);
+  if (!chat) return res.status(404).json({ error: 'Chat nicht gefunden.' });
+  const remaining = chats.filter((entry) => entry.id !== chat.id);
   writeChats(remaining);
   res.json({ ok: true });
 });
 
 app.post('/api/claude/chat', requireApiAuth, chatLimiter, (req, res) => {
-  const message = typeof req.body.message === 'string' ? req.body.message.trim() : '';
+  const { message, context, prompt } = parseChatInput(req.body);
   const conversationId = typeof req.body.conversationId === 'string' ? req.body.conversationId : '';
   const model = CHAT_MODELS.has(req.body.model) ? req.body.model : 'sonnet';
   const effort = CHAT_EFFORTS.has(req.body.effort) ? req.body.effort : 'medium';
@@ -387,16 +783,26 @@ app.post('/api/claude/chat', requireApiAuth, chatLimiter, (req, res) => {
   if (!message || message.length > 20_000) {
     return res.status(400).json({ error: 'Nachricht fehlt oder ist zu lang.' });
   }
+  if (context.length > 40_000 || prompt.length > 50_000) {
+    return res.status(400).json({ error: 'Interner Kontext ist zu lang.' });
+  }
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(conversationId)) {
     return res.status(400).json({ error: 'Ungültige Chat-ID.' });
   }
+  if (!hasCurrentClaudeCredentials()) {
+    return res.status(401).json({
+      error: 'Claude-Anmeldung ist abgelaufen.',
+      loginUrl: '/claude-auth',
+    });
+  }
 
   const chats = readChats();
-  const chat = findChat(chats, conversationId);
+  const chat = findUserChat(chats, conversationId, req.session.userId);
   if (!chat) return res.status(404).json({ error: 'Chat nicht gefunden.' });
+  if (claudeChatBusy(res, conversationId)) return;
   const project = getProject(chat.project);
 
-  const resume = chat.messages.some((entry) => entry.role === 'assistant');
+  const resume = claudeSessionExists(project, conversationId);
   const now = new Date().toISOString();
   chat.model = model;
   chat.effort = effort;
@@ -410,13 +816,13 @@ app.post('/api/claude/chat', requireApiAuth, chatLimiter, (req, res) => {
 
   const args = [
     '-p',
-    message,
+    prompt,
     '--output-format',
     'json',
     '--permission-mode',
     'bypassPermissions',
     '--append-system-prompt',
-    SERVER_SYSTEM_PROMPT,
+    claudeSystemPrompt(req),
     '--model',
     model,
     '--effort',
@@ -425,7 +831,7 @@ app.post('/api/claude/chat', requireApiAuth, chatLimiter, (req, res) => {
   if (resume) args.push('--resume', conversationId);
   else args.push('--session-id', conversationId);
 
-  execFile(
+  const child = execFile(
     '/usr/bin/claude',
     args,
     {
@@ -435,9 +841,18 @@ app.post('/api/claude/chat', requireApiAuth, chatLimiter, (req, res) => {
       maxBuffer: 10 * 1024 * 1024,
     },
     (error, stdout, stderr) => {
+      if (activeClaudeChats.get(conversationId) === child) {
+        activeClaudeChats.delete(conversationId);
+      }
       if (error) {
-        console.error('Claude chat failed:', stderr || error.message);
-        return res.status(500).json({ error: 'Claude konnte die Anfrage nicht ausführen.' });
+        let result = null;
+        try { result = JSON.parse(stdout); } catch {}
+        const failure = claudeStreamError(result, stderr || error.message, false);
+        console.error('Claude chat failed:', result?.result || stderr || error.message);
+        return res.status(failure.loginUrl ? 401 : 500).json({
+          error: failure.message,
+          ...(failure.loginUrl ? { loginUrl: failure.loginUrl } : {}),
+        });
       }
       try {
         const result = JSON.parse(stdout);
@@ -463,35 +878,505 @@ app.post('/api/claude/chat', requireApiAuth, chatLimiter, (req, res) => {
           chat: currentChat,
           usage: currentChat?.usage || null,
         });
+        // gbrain: Gespräch asynchron im Langzeit-Gedächtnis speichern
+        gbrainCapture(
+          req.session.username || 'anonym',
+          project.id,
+          currentChat?.title || chat.title,
+          conversationId,
+          message,
+          responseText
+        );
       } catch {
         res.status(500).json({ error: 'Claude hat eine ungültige Antwort geliefert.' });
       }
     }
   );
+  activeClaudeChats.set(conversationId, child);
+  child.stdin.end();
+});
+
+app.post('/api/codex/chat', requireApiAuth, chatLimiter, (req, res) => {
+  const { message, context, prompt: promptMessage } = parseChatInput(req.body);
+  const conversationId = typeof req.body.conversationId === 'string' ? req.body.conversationId : '';
+  const model = typeof req.body.model === 'string' && /^[a-z0-9.-]{2,80}$/i.test(req.body.model)
+    ? req.body.model
+    : 'gpt-5.5';
+  const effort = CHAT_EFFORTS.has(req.body.effort) ? req.body.effort : 'medium';
+
+  if (!message || message.length > 20_000) {
+    return res.status(400).json({ error: 'Nachricht fehlt oder ist zu lang.' });
+  }
+  if (context.length > 40_000 || promptMessage.length > 50_000) {
+    return res.status(400).json({ error: 'Interner Kontext ist zu lang.' });
+  }
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(conversationId)) {
+    return res.status(400).json({ error: 'Ungültige Chat-ID.' });
+  }
+
+  codexLoginStatus(req, (_statusError, status) => {
+    if (!status.loggedIn) {
+      return res.status(401).json({
+        error: 'Codex ist nicht angemeldet.',
+        loginProvider: 'codex',
+      });
+    }
+
+    const chats = readChats();
+    const chat = findUserChat(chats, conversationId, req.session.userId);
+    if (!chat) return res.status(404).json({ error: 'Chat nicht gefunden.' });
+    if (activeCodexChats.has(conversationId)) {
+      return res.status(409).json({ error: 'Codex arbeitet bereits in diesem Chat.' });
+    }
+    const project = getProject(chat.project);
+    const now = new Date().toISOString();
+    chat.provider = 'codex';
+    chat.model = model;
+    chat.effort = effort;
+    chat.project = project.id;
+    chat.updatedAt = now;
+    chat.messages.push({ role: 'user', content: message, createdAt: now, provider: 'codex' });
+    if (chat.title === 'Neuer Chat') chat.title = message.replace(/\s+/g, ' ').slice(0, 52);
+    writeChats(chats);
+
+    const prompt = [
+      '[Verbindliche Server-Anweisung]',
+      claudeSystemPrompt(req),
+      '[/Verbindliche Server-Anweisung]',
+      '',
+      promptMessage,
+    ].join('\n');
+    const commonArgs = [
+      '-a', 'never',
+      '-s', 'danger-full-access',
+      'exec',
+    ];
+    const runArgs = chat.codexThreadId
+      ? [
+          ...commonArgs,
+          'resume',
+          '--json',
+          '--skip-git-repo-check',
+          '--model', model,
+          '-c', `model_reasoning_effort="${effort}"`,
+          chat.codexThreadId,
+          prompt,
+        ]
+      : [
+          ...commonArgs,
+          '--json',
+          '--color', 'never',
+          '--skip-git-repo-check',
+          '--model', model,
+          '-c', `model_reasoning_effort="${effort}"`,
+          '-C', project.repo,
+          prompt,
+        ];
+
+    const child = execFile(
+      CODEX_BIN,
+      runArgs,
+      {
+        cwd: project.repo,
+        env: codexEnv(req),
+        timeout: 10 * 60 * 1000,
+        maxBuffer: 20 * 1024 * 1024,
+      },
+      (error, stdout, stderr) => {
+        if (activeCodexChats.get(conversationId) === child) activeCodexChats.delete(conversationId);
+        const result = parseCodexResult(stdout || '');
+        if (error || result.failure || !result.response) {
+          const details = [result.failure, stderr, error?.message].filter(Boolean).join('\n');
+          console.error('Codex chat failed:', details);
+          if (/not logged|log in|login|authentication|unauthorized|401/i.test(details)) {
+            return res.status(401).json({ error: 'Codex ist nicht angemeldet.', loginProvider: 'codex' });
+          }
+          return res.status(500).json({ error: 'Codex konnte die Anfrage nicht ausführen.' });
+        }
+
+        const currentChats = readChats();
+        const currentChat = findUserChat(currentChats, conversationId, req.session.userId);
+        if (currentChat) {
+          currentChat.updatedAt = new Date().toISOString();
+          currentChat.provider = 'codex';
+          currentChat.model = model;
+          currentChat.effort = effort;
+          currentChat.project = project.id;
+          currentChat.codexThreadId = result.threadId || currentChat.codexThreadId || null;
+          currentChat.usage = result.usage ? {
+            inputTokens: result.usage.input_tokens || 0,
+            cachedInputTokens: result.usage.cached_input_tokens || 0,
+            outputTokens: result.usage.output_tokens || 0,
+            reasoningOutputTokens: result.usage.reasoning_output_tokens || 0,
+          } : null;
+          currentChat.messages.push({
+            role: 'assistant',
+            content: result.response,
+            createdAt: currentChat.updatedAt,
+            provider: 'codex',
+          });
+          writeChats(currentChats);
+        }
+        res.json({ response: result.response, chat: currentChat, usage: currentChat?.usage || null });
+        gbrainCapture(
+          req.session.username,
+          project.id,
+          currentChat?.title || chat.title,
+          conversationId,
+          message,
+          result.response
+        );
+      }
+    );
+    activeCodexChats.set(conversationId, child);
+    child.stdin.end();
+  });
+});
+
+function claudeStreamError(result, stderr, timedOut) {
+  if (timedOut) return {
+    message: 'Claude hat nach 10 Minuten nicht geantwortet.',
+  };
+
+  const details = [result?.result, stderr].filter(Boolean).join('\n');
+  if (result?.api_error_status === 401 || /authenticat|credentials|oauth|401/i.test(details)) {
+    return {
+      message: 'Claude ist nicht angemeldet oder die Anmeldung ist abgelaufen.',
+      loginUrl: '/claude-login',
+    };
+  }
+  if (result?.api_error_status === 429 || /rate.?limit|too many requests|429/i.test(details)) {
+    return {
+      message: 'Claude hat das aktuelle Nutzungslimit erreicht. Bitte später erneut versuchen.',
+    };
+  }
+  return {
+    message: 'Claude konnte die Anfrage nicht ausführen. Details stehen im Server-Log.',
+  };
+}
+
+function toolResultText(content) {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return JSON.stringify(content ?? '');
+  return content.map((entry) => {
+    if (typeof entry === 'string') return entry;
+    if (typeof entry?.text === 'string') return entry.text;
+    if (typeof entry?.content === 'string') return entry.content;
+    return JSON.stringify(entry);
+  }).join('\n');
+}
+
+// Streaming chat endpoint. Fetch consumes the SSE response while Claude is working.
+app.post('/api/claude/chat/stream', requireApiAuth, chatLimiter, (req, res) => {
+  const { message, context, prompt } = parseChatInput(req.body);
+  const conversationId = typeof req.body.conversationId === 'string' ? req.body.conversationId : '';
+  const model = CHAT_MODELS.has(req.body.model) ? req.body.model : 'sonnet';
+  const effort = CHAT_EFFORTS.has(req.body.effort) ? req.body.effort : 'medium';
+
+  if (!message || message.length > 20_000) {
+    return res.status(400).json({ error: 'Nachricht fehlt oder ist zu lang.' });
+  }
+  if (context.length > 40_000 || prompt.length > 50_000) {
+    return res.status(400).json({ error: 'Interner Kontext ist zu lang.' });
+  }
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(conversationId)) {
+    return res.status(400).json({ error: 'Ungültige Chat-ID.' });
+  }
+
+  const chats = readChats();
+  const chat = findUserChat(chats, conversationId, req.session.userId);
+  if (!chat) return res.status(404).json({ error: 'Chat nicht gefunden.' });
+  if (claudeChatBusy(res, conversationId)) return;
+  const project = getProject(chat.project);
+  const resume = claudeSessionExists(project, conversationId);
+  const now = new Date().toISOString();
+
+  chat.model = model;
+  chat.effort = effort;
+  chat.project = project.id;
+  chat.updatedAt = now;
+  chat.messages.push({ role: 'user', content: message, createdAt: now });
+  if (chat.title === 'Neuer Chat') {
+    chat.title = message.replace(/\s+/g, ' ').slice(0, 52);
+  }
+  writeChats(chats);
+
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  const emit = (event) => {
+    if (!res.writableEnded && !res.destroyed) {
+      res.write(`data: ${JSON.stringify(event)}\n\n`);
+    }
+  };
+
+  const args = [
+    '-p',
+    prompt,
+    '--output-format',
+    'stream-json',
+    '--verbose',
+    '--include-partial-messages',
+    '--permission-mode',
+    'bypassPermissions',
+    '--append-system-prompt',
+    claudeSystemPrompt(req),
+    '--model',
+    model,
+    '--effort',
+    effort,
+  ];
+  if (resume) args.push('--resume', conversationId);
+  else args.push('--session-id', conversationId);
+
+  const child = spawn('/usr/bin/claude', args, {
+    cwd: project.repo,
+    env: { ...process.env, HOME: '/home/ole' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  activeClaudeChats.set(conversationId, child);
+
+  let buffer = '';
+  let streamedText = '';
+  let finalizedText = '';
+  let finalResult = null;
+  let stderr = '';
+  let timedOut = false;
+  let settled = false;
+  const emittedTools = new Set();
+
+  const processEvent = (event) => {
+    if (event.type === 'stream_event') {
+      const delta = event.event?.delta;
+      if (event.event?.type === 'content_block_delta' && delta?.type === 'text_delta' && delta.text) {
+        streamedText += delta.text;
+        emit({ type: 'text', text: delta.text });
+      }
+      return;
+    }
+
+    if (event.type === 'assistant' && Array.isArray(event.message?.content)) {
+      if (event.error || event.message?.model === '<synthetic>') return;
+      for (const block of event.message.content) {
+        if (block.type === 'text' && block.text) {
+          finalizedText += block.text;
+        } else if (block.type === 'tool_use' && !emittedTools.has(block.id)) {
+          emittedTools.add(block.id);
+          emit({
+            type: 'tool_use',
+            id: block.id,
+            name: block.name,
+            input: block.input || {},
+          });
+        }
+      }
+      return;
+    }
+
+    if (event.type === 'user' && Array.isArray(event.message?.content)) {
+      for (const block of event.message.content) {
+        if (block.type === 'tool_result') {
+          emit({
+            type: 'tool_result',
+            id: block.tool_use_id,
+            content: toolResultText(block.content).slice(0, 12_000),
+            isError: Boolean(block.is_error),
+          });
+        }
+      }
+      return;
+    }
+
+    if (event.type === 'system' && event.subtype === 'api_retry') {
+      emit({
+        type: 'status',
+        message: event.error_status === 401
+          ? 'Claude-Anmeldung wird geprüft...'
+          : `Claude verbindet erneut (Versuch ${event.attempt})...`,
+      });
+      return;
+    }
+
+    if (event.type === 'result') finalResult = event;
+  };
+
+  const processLine = (line) => {
+    if (!line.trim()) return;
+    try {
+      processEvent(JSON.parse(line));
+    } catch {
+      console.error('Invalid Claude stream line:', line.slice(0, 300));
+    }
+  };
+
+  child.stdout.on('data', (chunk) => {
+    buffer += chunk.toString();
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+    lines.forEach(processLine);
+  });
+
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk.toString();
+    if (stderr.length > 20_000) stderr = stderr.slice(-20_000);
+  });
+
+  const heartbeat = setInterval(() => {
+    if (!res.writableEnded && !res.destroyed) res.write(': ping\n\n');
+  }, 15_000);
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    child.kill('SIGTERM');
+  }, 10 * 60 * 1000);
+
+  const finish = (code) => {
+    if (settled) return;
+    settled = true;
+    if (activeClaudeChats.get(conversationId) === child) {
+      activeClaudeChats.delete(conversationId);
+    }
+    clearInterval(heartbeat);
+    clearTimeout(timeout);
+    if (buffer.trim()) processLine(buffer);
+
+    if (finalResult?.is_error || code !== 0 || timedOut) {
+      const failure = claudeStreamError(finalResult, stderr, timedOut);
+      console.error('Claude stream failed:', finalResult?.result || stderr || `exit ${code}`);
+      emit({ type: 'error', ...failure });
+      res.end();
+      return;
+    }
+
+    const responseText = streamedText || finalizedText || finalResult?.result || 'Keine Antwort erhalten.';
+    const currentChats = readChats();
+    const currentChat = findChat(currentChats, conversationId);
+    if (currentChat) {
+      currentChat.updatedAt = new Date().toISOString();
+      currentChat.model = model;
+      currentChat.effort = effort;
+      currentChat.project = project.id;
+      if (finalResult) currentChat.usage = getUsageSummary(finalResult);
+      currentChat.messages.push({
+        role: 'assistant',
+        content: responseText,
+        createdAt: currentChat.updatedAt,
+      });
+      writeChats(currentChats);
+    }
+
+    emit({
+      type: 'done',
+      sessionId: finalResult?.session_id || conversationId,
+      response: responseText,
+      chat: currentChat,
+      usage: currentChat?.usage || null,
+    });
+    res.end();
+    gbrainCapture(
+      req.session.username || 'anonym',
+      project.id,
+      currentChat?.title || chat.title,
+      conversationId,
+      message,
+      responseText
+    );
+  };
+
+  child.on('close', finish);
+  child.on('error', (error) => {
+    stderr += `\n${error.message}`;
+    finish(1);
+  });
+  res.on('close', () => {
+    if (!settled && !res.writableEnded) child.kill('SIGTERM');
+  });
 });
 
 
 
 // ─── Claude Auth (stabil, kein Neustart beim Reload) ─────────────────────────
 let _claudeAuthUrl = null;
+let _claudeAuthProcess = null;
+let _claudeAuthOutput = '';
+let _claudeAuthWaiters = [];
+
+function hasCurrentClaudeCredentials() {
+  try {
+    const credentials = JSON.parse(
+      fs.readFileSync('/home/ole/.claude/.credentials.json', 'utf8')
+    ).claudeAiOauth;
+    return Boolean(credentials?.accessToken && credentials?.expiresAt > Date.now());
+  } catch {
+    return false;
+  }
+}
+
+function finishClaudeAuthStart(error, url) {
+  const waiters = _claudeAuthWaiters;
+  _claudeAuthWaiters = [];
+  waiters.forEach((waiter) => waiter(error, url));
+}
+
+function stopClaudeAuth() {
+  const child = _claudeAuthProcess;
+  _claudeAuthProcess = null;
+  _claudeAuthUrl = null;
+  _claudeAuthOutput = '';
+  if (_claudeAuthWaiters.length) {
+    finishClaudeAuthStart(new Error('Login wurde neu gestartet'));
+  }
+  if (child) {
+    try { child.kill('SIGTERM'); } catch {}
+  }
+}
 
 function startClaudeAuth(cb) {
-  const { exec } = require('child_process');
-  exec('tmux kill-session -t cauth 2>/dev/null; true', () => {
-    exec('rm -f /tmp/cauth.log && tmux new-session -d -s cauth "BROWSER=echo claude auth login 2>&1 | tee /tmp/cauth.log; bash"', () => {
-      const wait = (n) => {
-        setTimeout(() => {
-          exec("grep -o 'https://[^[:space:]]*' /tmp/cauth.log", (e, out) => {
-            const url = (out || '').trim();
-            if (url) { _claudeAuthUrl = url; cb(null, url); }
-            else if (n < 15) { wait(n + 1); }
-            else { cb(new Error('URL nicht gefunden')); }
-          });
-        }, 1000);
-      };
-      wait(0);
-    });
+  if (_claudeAuthUrl) return cb(null, _claudeAuthUrl);
+  _claudeAuthWaiters.push(cb);
+  if (_claudeAuthProcess) return;
+
+  _claudeAuthOutput = '';
+  const child = spawn('/usr/bin/claude', ['auth', 'login'], {
+    cwd: PROJECTS.epikur.repo,
+    env: { ...process.env, HOME: '/home/ole', BROWSER: 'echo', NO_COLOR: '1' },
+    stdio: ['pipe', 'pipe', 'pipe'],
   });
+  _claudeAuthProcess = child;
+
+  const consume = (chunk) => {
+    if (_claudeAuthProcess !== child) return;
+    _claudeAuthOutput += chunk.toString().replace(/\x1b\[[0-9;]*m/g, '');
+    if (_claudeAuthOutput.length > 30_000) _claudeAuthOutput = _claudeAuthOutput.slice(-30_000);
+    if (_claudeAuthUrl) return;
+    const match = _claudeAuthOutput.match(/https:\/\/[^\s]+/);
+    if (match) {
+      _claudeAuthUrl = match[0];
+      finishClaudeAuthStart(null, _claudeAuthUrl);
+    }
+  };
+
+  child.stdout.on('data', consume);
+  child.stderr.on('data', consume);
+  child.on('error', (error) => {
+    if (_claudeAuthProcess !== child) return;
+    _claudeAuthProcess = null;
+    finishClaudeAuthStart(error);
+  });
+  child.on('close', () => {
+    if (_claudeAuthProcess !== child) return;
+    _claudeAuthProcess = null;
+    if (!_claudeAuthUrl) finishClaudeAuthStart(new Error('URL nicht gefunden'));
+  });
+
+  setTimeout(() => {
+    if (!_claudeAuthUrl && _claudeAuthProcess === child) {
+      child.kill('SIGTERM');
+      finishClaudeAuthStart(new Error('URL nicht gefunden'));
+    }
+  }, 20_000);
 }
 
 app.get('/claude-auth', requireAuth, (req, res) => {
@@ -507,29 +1392,38 @@ app.get('/claude-auth', requireAuth, (req, res) => {
 });
 
 app.get('/claude-auth/reset', requireAuth, (req, res) => {
-  _claudeAuthUrl = null;
+  stopClaudeAuth();
   res.redirect('/claude-auth');
 });
 
 app.post('/claude-auth/submit', requireAuth, (req, res) => {
-  const { exec } = require('child_process');
-  const { code } = req.body;
+  const code = typeof req.body.code === 'string' ? req.body.code.trim() : '';
+  const child = _claudeAuthProcess;
   if (!code) return res.json({ success: false, error: 'Kein Code' });
-  const safe = code.replace(/['"\\]/g, '').trim();
-  exec('tmux send-keys -t cauth "' + safe + '" Enter', () => {
-    setTimeout(() => {
-      exec('tmux capture-pane -t cauth -p 2>/dev/null', (e, out) => {
-        const o = (out || '').toLowerCase();
-        if (o.includes('400') || o.includes('oauth error') || o.includes('request failed')) {
-          _claudeAuthUrl = null;
-          res.json({ success: false, error: 'Code abgelaufen — tippe auf "Neuen Link generieren"' });
-        } else {
-          _claudeAuthUrl = null;
-          res.json({ success: true });
-        }
+  if (code.length > 4096 || /[\r\n]/.test(code)) {
+    return res.json({ success: false, error: 'Ungültiger Code' });
+  }
+  if (!child?.stdin?.writable) {
+    return res.json({ success: false, error: 'Login-Sitzung abgelaufen — bitte neuen Link generieren.' });
+  }
+
+  child.stdin.write(`${code}\n`);
+  const deadline = Date.now() + 15_000;
+  const verify = () => {
+    if (hasCurrentClaudeCredentials()) {
+      _claudeAuthUrl = null;
+      return res.json({ success: true });
+    }
+    if (Date.now() >= deadline || (_claudeAuthProcess !== child && !child.stdin.writable)) {
+      _claudeAuthUrl = null;
+      return res.json({
+        success: false,
+        error: 'Code wurde nicht akzeptiert — bitte neuen Link generieren.',
       });
-    }, 5000);
-  });
+    }
+    setTimeout(verify, 500);
+  };
+  setTimeout(verify, 500);
 });
 
 
@@ -560,11 +1454,6 @@ wss.on('connection', (ws) => {
       const msg = JSON.parse(data);
 
       if (msg.type === 'auth') {
-        if (!bcrypt.compareSync(msg.token || '', PASSWORD_HASH)) {
-          ws.send(JSON.stringify({ type: 'error', data: 'Nicht autorisiert' }));
-          ws.close();
-          return;
-        }
         authenticated = true;
         // Echte Terminalgroesse vom Client uebernehmen
         termRows = msg.rows || 24;
@@ -636,5 +1525,5 @@ wss.on('connection', (ws) => {
 });
 
 server.listen(PORT, '127.0.0.1', () => {
-  console.log('WebSSH laeuft auf https://217.160.212.154:' + PORT);
+  console.log('WebSSH laeuft auf https://212.227.167.218:' + PORT);
 });
