@@ -72,6 +72,11 @@ body{font-family:'Inter',-apple-system,sans-serif;color:var(--t);background:#060
 .msd{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .msn{font-size:13px;font-weight:600;flex:1}
 .msdt{font-size:10px;color:var(--t3);font-family:'IBM Plex Mono',monospace}
+.msactions{display:flex;align-items:center;gap:5px;margin-left:4px}
+.msprogress{width:62px;min-height:28px;padding:4px 7px;font-size:10px;font-family:'IBM Plex Mono',monospace;text-align:right}
+.msform{display:grid;grid-template-columns:minmax(180px,2fr) minmax(140px,1fr) 110px 110px auto;gap:8px;padding-top:16px;border-top:1px solid var(--gborder);margin-top:14px;align-items:center}
+.mscolor{height:38px;padding:4px;cursor:pointer}
+@media(max-width:900px){.msform{grid-template-columns:1fr 1fr}.msform .mslabel{grid-column:1/-1}}
 /* TASKS BOARD */
 .board{display:flex;gap:14px;margin-bottom:18px;overflow-x:auto;padding-bottom:4px}
 .board::-webkit-scrollbar{height:3px}
@@ -606,10 +611,49 @@ function Tasks({tasks,setTasks,persons,setPersons,db}){
   );
 }
 
-function Milestones({milestones,db}){
+function Milestones({milestones,setMilestones,db}){
+  const [adding,setAdding]=useState(false);
+  const [draft,setDraft]=useState({label:"",target_date:"",progress:0,color:"#6EA8FF"});
+  const add=async()=>{
+    if(!draft.label.trim())return;
+    const progress=Math.max(0,Math.min(100,Number(draft.progress)||0));
+    const row={
+      label:draft.label.trim(),
+      target_date:draft.target_date||null,
+      done:progress===100,
+      progress,
+      color:draft.color,
+      sort_order:milestones.reduce((max,m)=>Math.max(max,Number(m.sort_order)||0),0)+1,
+    };
+    try{
+      if(db==="ok"){
+        const[r]=await sb.post("milestones",row);
+        setMilestones(ms=>[...ms,r]);
+      }else setMilestones(ms=>[...ms,{...row,id:Date.now().toString()}]);
+    }catch{setMilestones(ms=>[...ms,{...row,id:Date.now().toString()}]);}
+    setDraft({label:"",target_date:"",progress:0,color:"#6EA8FF"});
+    setAdding(false);
+  };
+  const update=async(id,patch)=>{
+    setMilestones(ms=>ms.map(m=>m.id===id?{...m,...patch}:m));
+    if(db==="ok")try{await sb.patch("milestones",id,patch);}catch{}
+  };
+  const setProgress=(id,value)=>{
+    const progress=Math.max(0,Math.min(100,Number(value)||0));
+    update(id,{progress,done:progress===100});
+  };
+  const toggle=milestone=>update(milestone.id,{done:!milestone.done,progress:!milestone.done?100:Math.min(milestone.progress,99)});
+  const del=async milestone=>{
+    if(!confirm(`"${milestone.label}" wirklich löschen?`))return;
+    setMilestones(ms=>ms.filter(m=>m.id!==milestone.id));
+    if(db==="ok")try{await sb.del("milestones",milestone.id);}catch{}
+  };
   return(
     <div className="page">
-      <div className="ph"><div><h1 className="ptitle">Meilen<em>steine</em></h1><p className="psub">Practio Roadmap</p></div></div>
+      <div className="ph">
+        <div><h1 className="ptitle">Meilen<em>steine</em></h1><p className="psub">{milestones.filter(m=>m.done).length} erledigt · {milestones.filter(m=>!m.done).length} offen</p></div>
+        <button className="btn btn-g" onClick={()=>setAdding(v=>!v)}><Ic d={ic.plus} size={14}/> Meilenstein</button>
+      </div>
       <Dbb s={db}/>
       <div className="gl card">
         <div className="cb">
@@ -621,11 +665,30 @@ function Milestones({milestones,db}){
                 <span className="msn">{m.label}</span>
                 {m.done&&<span className="badge bd-gn">Done</span>}
                 <span className="msdt">{m.target_date||"laufend"}</span>
+                <div className="msactions">
+                  <input className="msprogress" type="number" min="0" max="100" value={m.progress} onChange={e=>setProgress(m.id,e.target.value)} title="Fortschritt in Prozent"/>
+                  <button className={`tck ${m.done?"done":""}`} onClick={()=>toggle(m)} title={m.done?"Wieder öffnen":"Als erledigt markieren"}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#06070A" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d={ic.check}/></svg>
+                  </button>
+                  <button className="tdel" onClick={()=>del(m)} title="Meilenstein löschen">✕</button>
+                </div>
               </div>
               <div className="pt"><div className="pf" style={{width:`${m.progress}%`,background:m.color}}></div></div>
               <div style={{fontSize:10,color:"var(--t3)",fontFamily:"'IBM Plex Mono',monospace",marginTop:5}}>{m.progress}%</div>
             </div>
           ))}
+          {adding&&(
+            <div className="msform">
+              <input autoFocus className="mslabel" placeholder="Meilenstein…" value={draft.label} onChange={e=>setDraft({...draft,label:e.target.value})} onKeyDown={e=>{if(e.key==="Enter")add();if(e.key==="Escape")setAdding(false);}}/>
+              <input type="date" value={draft.target_date} onChange={e=>setDraft({...draft,target_date:e.target.value})}/>
+              <input type="number" min="0" max="100" placeholder="Fortschritt %" value={draft.progress} onChange={e=>setDraft({...draft,progress:e.target.value})}/>
+              <input className="mscolor" type="color" value={draft.color} onChange={e=>setDraft({...draft,color:e.target.value})} title="Farbe"/>
+              <div style={{display:"flex",gap:6}}>
+                <button className="btn btn-p" onClick={add}>Hinzufügen</button>
+                <button className="btn btn-g" onClick={()=>setAdding(false)}>✕</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1160,7 +1223,7 @@ function App(){
           {page==="overview"   &&<Overview    leads={leads} tasks={tasks} persons={persons} db={db}/>}
           {page==="leads"      &&<Leads       leads={leads} setLeads={setLeads} db={db}/>}
           {page==="tasks"      &&<Tasks       tasks={tasks} setTasks={setTasks} persons={persons} setPersons={setPersons} db={db}/>}
-          {page==="milestones" &&<Milestones  milestones={milestones} db={db}/>}
+          {page==="milestones" &&<Milestones  milestones={milestones} setMilestones={setMilestones} db={db}/>}
           {page==="finance"    &&<Finance     costs={costs} scenarios={scenarios} db={db}/>}
           {page==="code"       &&<Terminal/>}
         </main>
