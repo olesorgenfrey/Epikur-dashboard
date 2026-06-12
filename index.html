@@ -154,9 +154,165 @@ input::placeholder{color:var(--t3)}select option{background:#14161E}
 @keyframes spin{to{transform:rotate(360deg)}}
 .page{animation:fup 450ms var(--ease) both}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+/* AI CHAT */
+.aichat-btn{position:fixed;bottom:70px;right:20px;width:48px;height:48px;border-radius:50%;background:linear-gradient(145deg,#6EA8FF,#5A93FF);border:none;color:#06070A;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(110,168,255,.4);transition:all 250ms var(--ease);z-index:8002}
+.aichat-btn:hover{transform:scale(1.08);box-shadow:0 6px 26px rgba(110,168,255,.55)}
+.aichat-btn.open{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);color:var(--t2);box-shadow:none;transform:none}
+.aichat-panel{position:fixed;top:0;right:-420px;bottom:0;width:400px;z-index:8001;background:rgba(8,10,16,.97);backdrop-filter:blur(24px);border-left:1px solid rgba(255,255,255,.1);display:flex;flex-direction:column;transition:right 350ms var(--ease)}
+.aichat-panel.open{right:0;box-shadow:-20px 0 60px rgba(0,0,0,.6)}
+.aichat-msgs{flex:1;min-height:0;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.aichat-msgs::-webkit-scrollbar{width:3px}.aichat-msgs::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px}
+.aichat-bubble{max-width:85%;padding:9px 13px;font-size:13px;line-height:1.65;color:var(--t);word-break:break-word}
+.aichat-bubble.user{align-self:flex-end;background:rgba(110,168,255,.18);border:1px solid rgba(110,168,255,.28);border-radius:13px 13px 4px 13px}
+.aichat-bubble.ai{align-self:flex-start;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);border-radius:13px 13px 13px 4px}
+.aichat-controls{display:flex;gap:6px;width:100%;margin-top:10px}
+.aichat-select{min-width:0;flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:var(--t2);border-radius:7px;padding:6px 7px;font-size:10px;font-family:'IBM Plex Mono',monospace;outline:none}
+.aichat-select option{background:#11141c;color:var(--t)}
+.aichat-login{margin-top:9px;padding:9px 10px;border-radius:8px;background:rgba(110,168,255,.08);border:1px solid rgba(110,168,255,.2);font-size:11px;color:var(--t2);line-height:1.5}
+.aichat-code{display:inline-block;margin:5px 0 0;padding:4px 7px;border-radius:5px;background:rgba(255,255,255,.08);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.08em}
+.aichat-in{padding:12px 18px 16px;border-top:1px solid rgba(255,255,255,.08);flex-shrink:0}
+.aichat-ta{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:var(--t);padding:9px 12px;border-radius:10px;font-size:13px;font-family:'Inter',sans-serif;outline:none;resize:none;line-height:1.5;max-height:100px;overflow-y:auto;transition:border-color 150ms}
+.aichat-ta:focus{border-color:var(--a)}.aichat-ta::placeholder{color:var(--t3)}
 </style>
 </head>
 <body>
+
+<!-- Auth Overlay (vanilla JS, lädt vor React) -->
+<div id="authOverlay" style="position:fixed;inset:0;z-index:9999;background:#06070A;display:flex;align-items:center;justify-content:center;padding:20px;font-family:'Inter',-apple-system,sans-serif;">
+  <div style="width:100%;max-width:360px">
+    <div style="text-align:center;margin-bottom:32px">
+      <div style="font-size:13px;letter-spacing:.15em;text-transform:uppercase;color:rgba(244,246,251,.35);margin-bottom:8px">Practio</div>
+      <h1 style="font-size:24px;font-weight:600;color:#F4F6FB;margin:0" id="authHeading">Willkommen zurück</h1>
+      <p style="margin-top:8px;font-size:13px;color:rgba(244,246,251,.5)" id="authSub">Melde dich an um fortzufahren.</p>
+    </div>
+    <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:24px">
+      <label style="display:block;font-size:11px;color:rgba(244,246,251,.5);margin-bottom:6px">Benutzername</label>
+      <input id="authUser" type="text" autocomplete="username" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="z.B. ole"
+        style="display:block;width:100%;padding:10px 12px;background:#0d1117;border:1px solid rgba(255,255,255,.1);border-radius:9px;color:#F4F6FB;font-size:14px;outline:none;margin-bottom:14px;font-family:inherit">
+      <label style="display:block;font-size:11px;color:rgba(244,246,251,.5);margin-bottom:6px">Passwort</label>
+      <input id="authPass" type="password" autocomplete="current-password" placeholder="••••••"
+        style="display:block;width:100%;padding:10px 12px;background:#0d1117;border:1px solid rgba(255,255,255,.1);border-radius:9px;color:#F4F6FB;font-size:14px;outline:none;margin-bottom:6px;font-family:inherit">
+      <div id="authErr" style="font-size:11px;color:#F87171;min-height:18px;margin-bottom:10px"></div>
+      <button id="authBtn" onclick="doAuth()"
+        style="width:100%;padding:11px;background:#6EA8FF;border:0;border-radius:9px;color:#06070A;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">Anmelden</button>
+      <button id="authToggleBtn" onclick="toggleAuthMode()"
+        style="width:100%;padding:9px;background:transparent;border:1px solid rgba(255,255,255,.1);border-radius:9px;color:rgba(244,246,251,.5);font-size:12px;cursor:pointer;font-family:inherit">Noch kein Konto? Registrieren</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var COLORS=['blue','purple','green','yellow','red'];
+
+  function colorForName(name){
+    var h=0;for(var i=0;i<name.length;i++)h=(h*31+name.charCodeAt(i))>>>0;
+    return COLORS[h%COLORS.length];
+  }
+
+  function ensurePerson(username){
+    try{
+      var key='practio-dashboard-v1';
+      var data=JSON.parse(localStorage.getItem(key)||'{}');
+      var persons=data.persons||[];
+      var lname=username.toLowerCase();
+      var exists=persons.some(function(p){return p.name.toLowerCase()===lname;});
+      if(!exists){
+        var np={id:Date.now().toString(),name:username,color:colorForName(username),created_at:new Date().toISOString()};
+        persons.push(np);
+        localStorage.setItem(key,JSON.stringify(Object.assign({},data,{persons:persons})));
+        window.dispatchEvent(new CustomEvent('practio:person-added',{detail:np}));
+      }
+    }catch(e){}
+  }
+
+  var mode='login';
+  var overlay=document.getElementById('authOverlay');
+
+  ['authUser','authPass'].forEach(function(id){
+    var el=document.getElementById(id);
+    el.addEventListener('focus',function(){el.style.borderColor='#6EA8FF';});
+    el.addEventListener('blur',function(){el.style.borderColor='rgba(255,255,255,.1)';});
+    el.addEventListener('keydown',function(e){if(e.key==='Enter')doAuth();});
+  });
+
+  window.toggleAuthMode=function(){
+    mode=mode==='login'?'register':'login';
+    document.getElementById('authHeading').textContent=mode==='login'?'Willkommen zurück':'Konto erstellen';
+    document.getElementById('authSub').textContent=mode==='login'?'Melde dich an um fortzufahren.':'Wähle Benutzername und Passwort.';
+    document.getElementById('authBtn').textContent=mode==='login'?'Anmelden':'Registrieren';
+    document.getElementById('authToggleBtn').textContent=mode==='login'?'Noch kein Konto? Registrieren':'Bereits registriert? Anmelden';
+    document.getElementById('authErr').textContent='';
+    document.getElementById('authPass').autocomplete=mode==='login'?'current-password':'new-password';
+  };
+
+  function showPending(username){
+    document.getElementById('authHeading').textContent='Anfrage gesendet';
+    document.getElementById('authSub').textContent='';
+    document.getElementById('authUser').style.display='none';
+    document.getElementById('authPass').style.display='none';
+    document.getElementById('authUser').previousElementSibling.style.display='none';
+    document.getElementById('authPass').previousElementSibling.style.display='none';
+    document.getElementById('authErr').style.display='none';
+    document.getElementById('authBtn').style.display='none';
+    document.getElementById('authToggleBtn').style.display='none';
+    var box=document.querySelector('#authOverlay .modal-inner')||document.querySelector('#authOverlay [style*="background"]');
+    var msg=document.createElement('div');
+    msg.style.cssText='text-align:center;padding:8px 0;color:rgba(244,246,251,.7);font-size:13px;line-height:1.7';
+    msg.innerHTML='Dein Account <strong style="color:#F4F6FB">'+username+'</strong> wurde erstellt.<br>Der Admin muss deine Anfrage erst genehmigen.<br><span style="color:rgba(244,246,251,.4);font-size:11px">Du erhältst keinen weiteren Hinweis — versuch es einfach später erneut.</span>';
+    document.querySelector('#authOverlay > div > div:last-child').appendChild(msg);
+  }
+
+  function unlockOverlay(){
+    overlay.style.transition='opacity .4s';
+    overlay.style.opacity='0';
+    setTimeout(function(){overlay.style.display='none';},400);
+  }
+
+  window.doAuth=function(){
+    var username=document.getElementById('authUser').value.trim();
+    var password=document.getElementById('authPass').value;
+    var btn=document.getElementById('authBtn');
+    var err=document.getElementById('authErr');
+    if(!username||!password){err.textContent='Bitte beide Felder ausfüllen.';return;}
+    btn.disabled=true;btn.textContent='...';err.textContent='';
+    var endpoint=mode==='login'?'/api/users/login':'/api/users/register';
+    fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:username,password:password})})
+      .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,data:d};});})
+      .then(function(res){
+        if(res.ok && res.data.pending){
+          showPending(username);
+        } else if(res.ok){
+          window.__practioUser={username:res.data.username||username,isAdmin:res.data.isAdmin||false};
+          ensurePerson(res.data.username||username);
+          unlockOverlay();
+        } else {
+          err.textContent=res.data.error||'Fehler beim Anmelden.';
+          btn.disabled=false;btn.textContent=mode==='login'?'Anmelden':'Registrieren';
+        }
+      })
+      .catch(function(){
+        err.textContent='Verbindungsfehler. Bitte neu laden.';
+        btn.disabled=false;btn.textContent=mode==='login'?'Anmelden':'Registrieren';
+      });
+  };
+
+  // Prüfen ob bereits eingeloggt
+  fetch('/api/users/me')
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.loggedIn){
+        window.__practioUser={username:d.username,isAdmin:d.isAdmin||false};
+        ensurePerson(d.username);
+        overlay.style.display='none';
+      } else {
+        document.getElementById('authUser').focus();
+      }
+    })
+    .catch(function(){document.getElementById('authUser').focus();});
+})();
+</script>
+
 <div id="root"></div>
 <script type="text/babel">
 const {useState,useEffect,useRef}=React;
@@ -388,6 +544,19 @@ function Tasks({tasks,setTasks,persons,setPersons,db}){
     setPersons(ps=>[...ps,{...row,id:Date.now().toString()}]);
     setNewPN("");setAddP(false);
   };
+  const deletePerson=async(id)=>{
+    const p=persons.find(x=>x.id===id);
+    if(!p)return;
+    if(p.name.toLowerCase()===(window.__practioUser?.isAdmin&&window.__practioUser?.username||'').toLowerCase()){
+      alert(`"${p.name}" ist der Admin und kann nicht gelöscht werden.`);return;
+    }
+    if(!confirm(`"${p.name}" wirklich löschen?\nAlle zugewiesenen Tasks verlieren die Zuweisung.`))return;
+    setPersons(ps=>ps.filter(x=>x.id!==id));
+    try{if(db==="ok")await sb.del("persons",id);}catch{}
+    const data=loadLocal();
+    data.persons=(data.persons||[]).filter(x=>x.id!==id);
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+  };
   return(
     <div className="page">
       <div className="ph">
@@ -408,7 +577,10 @@ function Tasks({tasks,setTasks,persons,setPersons,db}){
           <div className="gl tcol" key={p.id}>
             <div className="tch">
               <div className="tcn"><div className="av">{p.name[0]}</div><span className="tct">{p.name}</span></div>
-              <span className={`badge ${COLS[pi%COLS.length]}`}>{tasks.filter(t=>t.assignee_id===p.id&&!t.done).length}</span>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <span className={`badge ${COLS[pi%COLS.length]}`}>{tasks.filter(t=>t.assignee_id===p.id&&!t.done).length}</span>
+                <button className="tdel" onClick={()=>deletePerson(p.id)} title="Person löschen">✕</button>
+              </div>
             </div>
             <div className="tcb">
               {tasks.filter(t=>t.assignee_id===p.id).length===0
@@ -553,11 +725,356 @@ function Terminal(){
   );
 }
 
+function AdminPanel({onClose}){
+  const [pending,setPending]=useState([]);
+  const [busy,setBusy]=useState({});
+  useEffect(()=>{
+    fetch('/api/admin/users/pending').then(r=>r.json()).then(setPending).catch(()=>{});
+  },[]);
+  const approve=async(id,username)=>{
+    setBusy(b=>({...b,[id]:'approve'}));
+    await fetch(`/api/admin/users/${id}/approve`,{method:'POST'});
+    window.dispatchEvent(new CustomEvent('practio:person-added',{detail:{id:Date.now().toString(),name:username,color:(['blue','purple','green','yellow','red'])[username.length%5],created_at:new Date().toISOString()}}));
+    setPending(ps=>ps.filter(p=>p.id!==id));
+    setBusy(b=>({...b,[id]:null}));
+  };
+  const reject=async(id)=>{
+    setBusy(b=>({...b,[id]:'reject'}));
+    await fetch(`/api/admin/users/${id}`,{method:'DELETE'});
+    setPending(ps=>ps.filter(p=>p.id!==id));
+    setBusy(b=>({...b,[id]:null}));
+  };
+  return(
+    <div style={{position:'fixed',inset:0,zIndex:9000,background:'rgba(0,0,0,.6)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+      <div className="gl" style={{width:'100%',maxWidth:420,padding:24}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20}}>
+          <div style={{fontSize:16,fontWeight:600,color:'var(--t)'}}>Zugriffsanfragen</div>
+          <button onClick={onClose} style={{border:0,background:'transparent',color:'var(--t3)',cursor:'pointer',fontSize:18}}>✕</button>
+        </div>
+        {pending.length===0
+          ?<div style={{textAlign:'center',color:'var(--t3)',fontSize:13,padding:'20px 0'}}>Keine offenen Anfragen</div>
+          :pending.map(u=>(
+            <div key={u.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 0',borderBottom:'1px solid rgba(255,255,255,.06)'}}>
+              <div>
+                <div style={{fontSize:13,fontWeight:500,color:'var(--t)'}}>{u.username}</div>
+                <div style={{fontSize:10,color:'var(--t3)',marginTop:2}}>{new Date(u.createdAt).toLocaleString('de-DE')}</div>
+              </div>
+              <div style={{display:'flex',gap:8}}>
+                <button className="btn btn-p" disabled={!!busy[u.id]} onClick={()=>approve(u.id,u.username)} style={{fontSize:11,padding:'5px 10px'}}>
+                  {busy[u.id]==='approve'?'...':'Genehmigen'}
+                </button>
+                <button className="btn" disabled={!!busy[u.id]} onClick={()=>reject(u.id)} style={{fontSize:11,padding:'5px 10px',background:'rgba(248,113,113,.15)',border:'1px solid rgba(248,113,113,.3)',color:'#F87171'}}>
+                  {busy[u.id]==='reject'?'...':'Ablehnen'}
+                </button>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  );
+}
+
+const GITHUB_REPOS={
+  'epikur-dashboard':'olesorgenfrey/Epikur-dashboard',
+  'epikur-patient':'olesorgenfrey/epikur-patient',
+  'epikur':'olesorgenfrey/epikur',
+  'epikur-produkt':'olesorgenfrey/epikur-produkt',
+  'epikur-werbung':'olesorgenfrey/epikur-werbung',
+};
+
+function currentTaskIdentity(persons){
+  const username=(window.__practioUser?.username||'').trim();
+  const person=persons.find(p=>p.name.toLocaleLowerCase('de-DE')===username.toLocaleLowerCase('de-DE'))||null;
+  return{username,person};
+}
+
+function formatTaskList(tasks,persons){
+  return tasks.map(t=>{
+    const p=persons.find(x=>x.id===t.assignee_id);
+    return`• ${p?p.name:'?'}: "${t.text}" (id:"${t.id}")`;
+  }).join('\n');
+}
+
+function buildTaskCtx(tasks,persons){
+  const{username,person}=currentTaskIdentity(persons);
+  const ownTasks=person?tasks.filter(t=>t.assignee_id===person.id):[];
+  const otherTasks=person?tasks.filter(t=>t.assignee_id!==person.id):tasks;
+  let s='[Practio Kontext]\n';
+  s+=`Aktueller Nutzer: ${username||'unbekannt'}${person?` (Person-ID:"${person.id}")`:''}\n`;
+  s+='Regel: Konzentriere dich bei allgemeinen Fragen und Empfehlungen vorrangig auf die Tasks des aktuellen Nutzers. ';
+  s+='Tasks anderer Personen sind ebenfalls verfügbar und dürfen normal besprochen oder geändert werden, wenn sie für die Anfrage relevant sind.\n';
+  if(person)s+=`Neue Tasks ohne ausdrücklich genannte andere Zuweisung standardmäßig ${person.name} (id:"${person.id}") zuweisen.\n`;
+  s+='GitHub: olesorgenfrey · Repos: '+Object.values(GITHUB_REPOS).join(', ')+'\n';
+  if(persons.length)s+='Personen: '+persons.map(p=>`${p.name} (id:"${p.id}")`).join(', ')+'\n';
+  const ownOpen=ownTasks.filter(t=>!t.done);
+  const otherOpen=otherTasks.filter(t=>!t.done);
+  if(ownOpen.length)s+='Eigene offene Tasks (Priorität):\n'+formatTaskList(ownOpen,persons)+'\n';
+  if(otherOpen.length)s+='Weitere offene Tasks:\n'+formatTaskList(otherOpen,persons)+'\n';
+  const ownDone=ownTasks.filter(t=>t.done).length;
+  const otherDone=otherTasks.filter(t=>t.done).length;
+  if(ownDone||otherDone)s+=`Erledigte Tasks: eigene ${ownDone}, weitere ${otherDone}\n`;
+  return{context:s+'[/Practio Kontext]\n\n',currentPerson:person};
+}
+
+function execTaskActions(responseText,tasks,persons,setTasks){
+  const RE=/<practio_action>([\s\S]*?)<\/practio_action>/g;
+  const acts=[];let m;
+  while((m=RE.exec(responseText))!==null){try{acts.push(JSON.parse(m[1]));}catch{}}
+  const clean=responseText.replace(/<practio_action>[\s\S]*?<\/practio_action>/g,'').replace(/\n{3,}/g,'\n\n').trim();
+  if(!acts.length)return{clean,summary:''};
+  let next=[...tasks];
+  const results=[];
+  for(const a of acts){
+    if(a.action==='create_task'){
+      const p=persons.find(x=>x.id===a.assignee_id);
+      next=[...next,{id:Date.now().toString()+(Math.random()*1000|0),text:a.text,meta:'',assignee_id:a.assignee_id,done:false,priority:'medium'}];
+      results.push(`Task erstellt: "${a.text}"${p?` → ${p.name}`:''}`);}
+    else if(a.action==='toggle_task'){
+      const t=next.find(x=>x.id===a.id);
+      if(!t){results.push(`Task ${a.id} nicht gefunden`);continue;}
+      next=next.map(x=>x.id===a.id?{...x,done:a.done}:x);
+      results.push(`"${t?.text||a.id}" ${a.done?'abgehakt':'geöffnet'}`);}
+    else if(a.action==='delete_task'){
+      const t=next.find(x=>x.id===a.id);
+      if(!t){results.push(`Task ${a.id} nicht gefunden`);continue;}
+      next=next.filter(x=>x.id!==a.id);
+      results.push(`"${t?.text||a.id}" gelöscht`);}
+  }
+  setTasks(next);
+  try{const d=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');d.tasks=next;localStorage.setItem(STORAGE_KEY,JSON.stringify(d));}catch{}
+  return{clean,summary:results.length?'\n\n✓ '+results.join(' · '):''};
+}
+
+function AiChat({tasks,setTasks,persons}){
+  const [open,setOpen]=useState(false);
+  const [provider,setProvider]=useState(()=>sessionStorage.getItem('aiProvider')||'claude');
+  const initialChatKey=`aiDashChatId:${sessionStorage.getItem('aiProvider')||'claude'}`;
+  const [chatId,setChatId]=useState(()=>sessionStorage.getItem(initialChatKey)||(initialChatKey.endsWith(':claude')?sessionStorage.getItem('aiDashChatId'):null));
+  const [model,setModel]=useState(()=>sessionStorage.getItem(`aiModel:${provider}`)||(provider==='codex'?'gpt-5.5':'sonnet'));
+  const [effort,setEffort]=useState(()=>sessionStorage.getItem(`aiEffort:${provider}`)||'low');
+  const [codexModels,setCodexModels]=useState([
+    {id:'gpt-5.5',label:'GPT-5.5'},
+    {id:'gpt-5.4',label:'GPT-5.4'},
+    {id:'gpt-5.4-mini',label:'GPT-5.4-Mini'},
+  ]);
+  const [providerStatus,setProviderStatus]=useState(null);
+  const [deviceLogin,setDeviceLogin]=useState(null);
+  const [loginBusy,setLoginBusy]=useState(false);
+  const [msgs,setMsgs]=useState([]);
+  const [input,setInput]=useState('');
+  const [loading,setLoading]=useState(false);
+  const endRef=useRef(null);
+  const taRef=useRef(null);
+  const claudeModels=[{id:'sonnet',label:'Sonnet'},{id:'opus',label:'Opus'},{id:'haiku',label:'Haiku'}];
+  const modelOptions=provider==='codex'?codexModels:claudeModels;
+  const username=window.__practioUser?.username||'unbekannt';
+
+  const checkProviderStatus=async(selectedProvider=provider)=>{
+    try{
+      const r=await fetch(`/api/${selectedProvider}/status`,{cache:'no-store'});
+      const d=await r.json();
+      if(selectedProvider===provider)setProviderStatus(d);
+      return d;
+    }catch{return{loggedIn:false};}
+  };
+
+  const beginLogin=async()=>{
+    if(provider==='claude'){
+      window.open('/claude-auth','_blank','noopener');
+      return;
+    }
+    setLoginBusy(true);
+    const tab=window.open('about:blank','_blank');
+    try{
+      const r=await fetch('/api/codex/login/start',{method:'POST'});
+      const d=await r.json();
+      if(!r.ok)throw new Error(d.error||'Codex-Login konnte nicht gestartet werden.');
+      if(d.loggedIn){if(tab)tab.close();setProviderStatus({loggedIn:true});return;}
+      setDeviceLogin(d);
+      if(tab)tab.location=d.url;
+    }catch(error){
+      if(tab)tab.close();
+      setMsgs(ms=>[...ms,{role:'assistant',content:error.message}]);
+    }finally{setLoginBusy(false);}
+  };
+
+  useEffect(()=>{endRef.current?.scrollIntoView({behavior:'smooth'});},[msgs,loading,deviceLogin]);
+  useEffect(()=>{if(open)setTimeout(()=>taRef.current?.focus(),150);},[open]);
+  useEffect(()=>{
+    sessionStorage.setItem('aiProvider',provider);
+    const key=`aiDashChatId:${provider}`;
+    setChatId(sessionStorage.getItem(key)||(provider==='claude'?sessionStorage.getItem('aiDashChatId'):null));
+    const fallback=provider==='codex'?'gpt-5.5':'sonnet';
+    setModel(sessionStorage.getItem(`aiModel:${provider}`)||fallback);
+    setEffort(sessionStorage.getItem(`aiEffort:${provider}`)||'low');
+    setProviderStatus(null);
+    setDeviceLogin(null);
+    setMsgs([]);
+  },[provider]);
+  useEffect(()=>{
+    if(!open)return;
+    checkProviderStatus();
+    if(provider==='codex'){
+      fetch('/api/codex/models',{cache:'no-store'}).then(r=>r.json()).then(d=>{
+        if(Array.isArray(d.models)&&d.models.length)setCodexModels(d.models);
+      }).catch(()=>{});
+    }
+  },[open,provider]);
+  useEffect(()=>{
+    if(!deviceLogin||provider!=='codex')return;
+    const poll=setInterval(async()=>{
+      const status=await checkProviderStatus('codex');
+      if(status.loggedIn){
+        clearInterval(poll);
+        setDeviceLogin(null);
+        setProviderStatus(status);
+        setMsgs(ms=>[...ms.filter(m=>!m.loginProvider),{role:'assistant',content:'Codex ist jetzt angemeldet.'}]);
+      }
+    },3000);
+    return()=>clearInterval(poll);
+  },[deviceLogin,provider]);
+  useEffect(()=>{sessionStorage.setItem(`aiModel:${provider}`,model);},[provider,model]);
+  useEffect(()=>{sessionStorage.setItem(`aiEffort:${provider}`,effort);},[provider,effort]);
+
+  const ensureChat=async()=>{
+    if(chatId)return chatId;
+    try{
+      const r=await fetch('/api/claude/chats',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider,project:'epikur-dashboard',model,effort})});
+      const d=await r.json();
+      if(!r.ok||!d.id)return null;
+      sessionStorage.setItem(`aiDashChatId:${provider}`,d.id);
+      setChatId(d.id);
+      return d.id;
+    }catch{return null;}
+  };
+
+  const send=async()=>{
+    const text=input.trim();
+    if(!text||loading)return;
+    setInput('');
+    const id=await ensureChat();
+    if(!id){setMsgs(ms=>[...ms,{role:'assistant',content:'Fehler: Chat konnte nicht erstellt werden.'}]);return;}
+    setMsgs(ms=>[...ms,{role:'user',content:text}]);
+    setLoading(true);
+    const taskCtx=buildTaskCtx(tasks,persons);
+    try{
+      const r=await fetch(`/api/${provider}/chat`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversationId:id,message:taskCtx.context+text,model,effort})});
+      const d=await r.json();
+      if(!r.ok){
+        setMsgs(ms=>[...ms,{role:'assistant',content:d.error||`${provider==='codex'?'Codex':'Claude'} konnte die Anfrage nicht ausführen.`,loginUrl:d.loginUrl||null,loginProvider:d.loginProvider||null}]);
+        setLoading(false);
+        if(r.status===401)setProviderStatus({loggedIn:false});
+        return;
+      }
+      const raw=d.response||d.error||'Keine Antwort.';
+      const{clean,summary}=execTaskActions(raw,tasks,persons,setTasks);
+      setMsgs(ms=>[...ms,{role:'assistant',content:clean+(summary?'\n'+summary.trim():'')}]);
+    }catch{
+      setMsgs(ms=>[...ms,{role:'assistant',content:'Verbindungsfehler. Bitte neu versuchen.'}]);
+    }
+    setLoading(false);
+  };
+
+  const renderText=c=>c.split('\n').map((l,i,a)=><React.Fragment key={i}>{l}{i<a.length-1&&<br/>}</React.Fragment>);
+
+  return(
+    <>
+      {open&&<div style={{position:'fixed',inset:0,zIndex:8000}} onClick={()=>setOpen(false)}/>}
+      <div className={`aichat-panel${open?' open':''}`}>
+        <div style={{padding:'16px 18px',borderBottom:'1px solid rgba(255,255,255,.08)',flexShrink:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <div style={{width:32,height:32,borderRadius:9,background:'linear-gradient(145deg,#6EA8FF,#A8C8FF)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#06070A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:600}}>KI-Assistent</div>
+              <div style={{fontSize:10,color:'var(--t3)',fontFamily:"'IBM Plex Mono',monospace"}}>Nutzer: {username} · {provider==='codex'?'Codex':'Claude'}</div>
+            </div>
+            <button onClick={()=>setOpen(false)} style={{border:0,background:'rgba(255,255,255,.05)',color:'var(--t3)',cursor:'pointer',borderRadius:7,width:28,height:28,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>✕</button>
+          </div>
+          <div className="aichat-controls">
+            <select className="aichat-select" value={provider} onChange={e=>setProvider(e.target.value)} disabled={loading}>
+              <option value="claude">Claude</option>
+              <option value="codex">Codex</option>
+            </select>
+            <select className="aichat-select" value={model} onChange={e=>setModel(e.target.value)} disabled={loading}>
+              {modelOptions.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
+            </select>
+            <select className="aichat-select" value={effort} onChange={e=>setEffort(e.target.value)} disabled={loading}>
+              <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="xhigh">XHigh</option>
+            </select>
+          </div>
+          {providerStatus&&!providerStatus.loggedIn&&(
+            <button className="btn btn-p" onClick={beginLogin} disabled={loginBusy} style={{width:'100%',marginTop:9,padding:'7px 10px',fontSize:11}}>
+              {loginBusy?'Login wird gestartet…':`${provider==='codex'?'Codex':'Claude'} anmelden`}
+            </button>
+          )}
+          {deviceLogin&&(
+            <div className="aichat-login">
+              Öffne <a href={deviceLogin.url} target="_blank" rel="noopener noreferrer" style={{color:'#A8C8FF'}}>OpenAI Device Login</a> und gib diesen Code ein:<br/>
+              <span className="aichat-code">{deviceLogin.code}</span>
+            </div>
+          )}
+        </div>
+        <div className="aichat-msgs">
+          {msgs.length===0&&(
+            <div style={{color:'var(--t3)',fontSize:12,fontFamily:"'IBM Plex Mono',monospace",textAlign:'center',padding:'40px 16px',lineHeight:2}}>
+              Stell mir eine Frage.<br/>
+              <span style={{fontSize:10,opacity:.55}}>Deine eigenen Tasks stehen standardmäßig im Fokus.<br/>Team-Tasks bleiben vollständig verfügbar.</span>
+            </div>
+          )}
+          {msgs.map((m,i)=>(
+            <div key={i} className={`aichat-bubble ${m.role==='user'?'user':'ai'}`}>
+              {renderText(m.content)}
+              {m.loginUrl&&<a href={m.loginUrl} target="_blank" rel="noopener noreferrer" style={{display:'block',marginTop:10,color:'#A8C8FF',fontWeight:600}}>Claude jetzt anmelden</a>}
+              {m.loginProvider==='codex'&&<button onClick={beginLogin} className="btn btn-p" style={{display:'block',marginTop:10,padding:'6px 9px',fontSize:11}}>Codex jetzt anmelden</button>}
+            </div>
+          ))}
+          {loading&&<div className="aichat-bubble ai"><div className="spin" style={{width:14,height:14}}></div></div>}
+          <div ref={endRef}/>
+        </div>
+        <div className="aichat-in">
+          <div style={{display:'flex',gap:8,alignItems:'flex-end'}}>
+            <textarea ref={taRef} className="aichat-ta" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}} placeholder="Frage stellen…" rows={1}/>
+            <button onClick={send} disabled={loading||!input.trim()} className="btn btn-p" style={{padding:'9px 13px',minHeight:'auto',flexShrink:0,opacity:(!input.trim()||loading)?0.45:1}}>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13 M22 2L15 22 8 13 2 7z"/></svg>
+            </button>
+          </div>
+          <div style={{marginTop:6,fontSize:9,color:'var(--t3)',fontFamily:"'IBM Plex Mono',monospace"}}>Enter senden · Shift+Enter Zeilenumbruch</div>
+        </div>
+      </div>
+      <button onClick={()=>setOpen(o=>!o)} className={`aichat-btn${open?' open':''}`} title="KI-Assistent">
+        {open?<svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18 M6 6l12 12"/></svg>:<svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>}
+      </button>
+    </>
+  );
+}
+
 function App(){
   const initial=useRef(loadLocal()).current;
   const [page,setPage]=useState("overview");
   const [db,setDb]=useState("loading");
   const [persons,setPersons]=useState(initial.persons);
+  const [pendingCount,setPendingCount]=useState(0);
+  const [showAdmin,setShowAdmin]=useState(false);
+  const isAdmin=window.__practioUser?.isAdmin||false;
+
+  useEffect(()=>{
+    const onPersonAdded=e=>{
+      setPersons(ps=>ps.some(p=>p.id===e.detail.id)?ps:[...ps,e.detail]);
+    };
+    window.addEventListener('practio:person-added',onPersonAdded);
+    return()=>window.removeEventListener('practio:person-added',onPersonAdded);
+  },[]);
+
+  useEffect(()=>{
+    if(!isAdmin)return;
+    const check=()=>fetch('/api/admin/users/pending').then(r=>r.json()).then(d=>setPendingCount(d.length)).catch(()=>{});
+    check();
+    const t=setInterval(check,30_000);
+    return()=>clearInterval(t);
+  },[isAdmin]);
   const [leads,setLeads]=useState(initial.leads);
   const [tasks,setTasks]=useState(initial.tasks);
   const [milestones,setMilestones]=useState(initial.milestones);
@@ -629,8 +1146,17 @@ function App(){
               {item.id==="leads"&&leads.length>0&&<span className="nbadge">{leads.length}</span>}
             </button>
           ))}
+          {isAdmin&&(
+            <button className="ni" onClick={()=>setShowAdmin(true)} style={{marginTop:'auto',position:'relative'}}>
+              <span className="nico"><Ic d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9 M13.73 21a2 2 0 0 1-3.46 0"/></span>
+              Anfragen
+              {pendingCount>0&&<span className="nbadge" style={{background:'#F87171'}}>{pendingCount}</span>}
+            </button>
+          )}
           <div className="sbfoot">„Schweigepflicht beginnt bei der Software"</div>
         </nav>
+        {showAdmin&&<AdminPanel onClose={()=>{setShowAdmin(false);fetch('/api/admin/users/pending').then(r=>r.json()).then(d=>setPendingCount(d.length)).catch(()=>{});}}/>}
+        <AiChat tasks={tasks} setTasks={setTasks} persons={persons}/>
         <main role="main" style={{flex:1,minWidth:0,paddingBottom:40}}>
           {page==="overview"   &&<Overview    leads={leads} tasks={tasks} persons={persons} db={db}/>}
           {page==="leads"      &&<Leads       leads={leads} setLeads={setLeads} db={db}/>}
