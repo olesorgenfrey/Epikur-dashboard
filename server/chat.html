@@ -737,6 +737,12 @@
       }, event => {
         if (event.type === 'text') renderer.text(event.text);
         else if (event.type === 'status') renderer.status(event.message);
+        else if (event.type === 'chat_title') {
+          activeChat = { ...activeChat, title: event.title, updatedAt: event.updatedAt };
+          const listedChat = chats.find(chat => chat.id === activeChat.id);
+          if (listedChat) Object.assign(listedChat, { title: event.title, updatedAt: event.updatedAt });
+          renderChatList();
+        }
         else if (event.type === 'tool_use') renderer.tool(event);
         else if (event.type === 'tool_result') renderer.toolResult(event);
         else if (event.type === 'error') terminalEvent = event;

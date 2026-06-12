@@ -262,6 +262,50 @@ function writeChats(chats) {
   fs.renameSync(temporaryFile, CHAT_DATA_FILE);
 }
 
+function chatTitleFromMessage(message) {
+  const normalized = String(message || '')
+    .replace(/\s+/g, ' ')
+    .replace(/^[#>*\-\s]+/, '')
+    .trim();
+  if (!normalized) return 'Neuer Chat';
+  return normalized.length > 52 ? `${normalized.slice(0, 51).trimEnd()}…` : normalized;
+}
+
+function pendingChatTitle(projectId, createdAt = new Date().toISOString()) {
+  const projectLabel = PROJECTS[projectId]?.label || 'Code';
+  const timestamp = new Intl.DateTimeFormat('de-DE', {
+    timeZone: 'Europe/Berlin',
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(createdAt));
+  return `${projectLabel} · ${timestamp}`;
+}
+
+function nameChatFromMessage(chat, message) {
+  if (!chat.titlePending && chat.title && chat.title !== 'Neuer Chat') return;
+  chat.title = chatTitleFromMessage(message);
+  chat.titlePending = false;
+}
+
+function migrateChatTitles() {
+  const chats = readChats();
+  let changed = false;
+  for (const chat of chats) {
+    if (chat.title && chat.title !== 'Neuer Chat') continue;
+    const firstUserMessage = (chat.messages || []).find((entry) => entry.role === 'user')?.content;
+    chat.title = firstUserMessage
+      ? chatTitleFromMessage(firstUserMessage)
+      : pendingChatTitle(chat.project, chat.createdAt);
+    chat.titlePending = !firstUserMessage;
+    changed = true;
+  }
+  if (changed) writeChats(chats);
+}
+
+migrateChatTitles();
+
 function findChat(chats, id) {
   return chats.find((chat) => chat.id === id);
 }
@@ -986,7 +1030,8 @@ app.post('/api/claude/chats', requireApiAuth, (req, res) => {
     id: crypto.randomUUID(),
     userId: req.session.userId || null,
     username: req.session.username || null,
-    title: 'Neuer Chat',
+    title: pendingChatTitle(project, now),
+    titlePending: true,
     provider,
     model,
     effort,
@@ -1051,9 +1096,7 @@ app.post('/api/claude/chat', requireApiAuth, chatLimiter, (req, res) => {
   chat.project = project.id;
   chat.updatedAt = now;
   chat.messages.push({ role: 'user', content: message, createdAt: now });
-  if (chat.title === 'Neuer Chat') {
-    chat.title = message.replace(/\s+/g, ' ').slice(0, 52);
-  }
+  nameChatFromMessage(chat, message);
   writeChats(chats);
 
   const args = [
@@ -1178,7 +1221,7 @@ app.post('/api/codex/chat', requireApiAuth, chatLimiter, (req, res) => {
     chat.project = project.id;
     chat.updatedAt = now;
     chat.messages.push({ role: 'user', content: message, createdAt: now, provider: 'codex' });
-    if (chat.title === 'Neuer Chat') chat.title = message.replace(/\s+/g, ' ').slice(0, 52);
+    nameChatFromMessage(chat, message);
     writeChats(chats);
 
     const prompt = [
@@ -1338,9 +1381,7 @@ app.post('/api/claude/chat/stream', requireApiAuth, chatLimiter, (req, res) => {
   chat.project = project.id;
   chat.updatedAt = now;
   chat.messages.push({ role: 'user', content: message, createdAt: now });
-  if (chat.title === 'Neuer Chat') {
-    chat.title = message.replace(/\s+/g, ' ').slice(0, 52);
-  }
+  nameChatFromMessage(chat, message);
   writeChats(chats);
 
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
@@ -1354,6 +1395,7 @@ app.post('/api/claude/chat/stream', requireApiAuth, chatLimiter, (req, res) => {
       res.write(`data: ${JSON.stringify(event)}\n\n`);
     }
   };
+  emit({ type: 'chat_title', title: chat.title, updatedAt: chat.updatedAt });
 
   const args = [
     '-p',
