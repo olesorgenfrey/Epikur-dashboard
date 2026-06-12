@@ -11,6 +11,7 @@ const bcrypt = require('bcryptjs');
 const { WebSocketServer } = require('ws');
 const { Client } = require('ssh2');
 const crypto = require('crypto');
+const { createProjectControlService } = require('./project-control-service');
 
 const app = express();
 const PORT = 4000;
@@ -24,6 +25,7 @@ const GBRAIN_ENV = { ...process.env, HOME: '/root', PATH: '/root/.bun/bin:/usr/l
 const CODEX_BIN = '/usr/bin/codex';
 const CODEX_HOME_ROOT = path.join(CHAT_DATA_DIR, 'codex-users');
 const CODEX_PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
+const projectControl = createProjectControlService({ dataDir: CHAT_DATA_DIR });
 const CHAT_MODELS = new Set(['sonnet', 'opus', 'haiku']);
 const CHAT_EFFORTS = new Set(['low', 'medium', 'high', 'xhigh']);
 const SERVER_SYSTEM_PROMPT = [
@@ -40,6 +42,8 @@ const SERVER_SYSTEM_PROMPT = [
   'Du hast Zugriff auf GitHub via MCP (github-Tool). GitHub-Username: olesorgenfrey.',
   'Repos: Epikur-dashboard, epikur-produkt, epikur-werbung, epikur, epikur-patient.',
   'Nutze das github-MCP-Tool um Issues, PRs, Commits, Branches und Dateiinhalte direkt von GitHub abzurufen.',
+  'Du darfst niemals automatisch nach main mergen oder direkt nach main pushen. Arbeite immer auf einem Feature-Branch,',
+  'erstelle einen Pull Request und warte auf Checks sowie eine ausdrückliche manuelle Freigabe.',
   'Du kannst Tasks im Practio-Dashboard verwalten. Wenn du einen Task erstellen oder ändern möchtest,',
   'füge am Ende deiner Antwort <practio_action>-Blöcke im JSON-Format ein:',
   'Neuen Task erstellen: <practio_action>{"action":"create_task","text":"Task-Text","assignee_id":"PERSON_ID"}</practio_action>',
@@ -156,7 +160,13 @@ async function hasStagedChanges(repo) {
   }
 }
 
-async function publishToMain(project, commitMessage) {
+async function publishReviewBranch(project, commitMessage) {
+  const branch = await runGit(project.repo, ['rev-parse', '--abbrev-ref', 'HEAD']);
+  if (!branch || branch === 'main' || branch === 'master') {
+    const error = new Error('Direkte Updates des Hauptbranches sind deaktiviert. Bitte zuerst einen Feature-Branch aktivieren.');
+    error.code = 'MAIN_PUSH_BLOCKED';
+    throw error;
+  }
   await runGit(project.repo, ['add', '-A']);
   const committed = await hasStagedChanges(project.repo);
   if (committed) await runGit(project.repo, ['commit', '-m', commitMessage]);
@@ -171,9 +181,10 @@ async function publishToMain(project, commitMessage) {
 
   const filesOutput = await runGit(project.repo, ['diff', '--name-only', 'origin/main...HEAD']);
   const ahead = Number(await runGit(project.repo, ['rev-list', '--count', 'origin/main..HEAD'])) || 0;
-  if (ahead > 0) await runGit(project.repo, ['push', 'origin', 'HEAD:main']);
+  if (ahead > 0) await runGit(project.repo, ['push', '--set-upstream', 'origin', `HEAD:${branch}`]);
 
   return {
+    branch,
     commit: await runGit(project.repo, ['rev-parse', '--short', 'HEAD']),
     fullCommit: await runGit(project.repo, ['rev-parse', 'HEAD']),
     committed,
@@ -199,8 +210,10 @@ async function deployProject(project) {
     await runShell(project.deployCommand, 15 * 60 * 1000);
   } else if (project.deployType === 'dashboard') {
     const sourceServer = path.join(project.repo, 'server/webssh-server.js');
+    const sourceProjectControl = path.join(project.repo, 'server/project-control-service.js');
     const activeServer = '/home/ole/webssh/server.js';
-    restartRequired = filesDiffer(sourceServer, activeServer);
+    const activeProjectControl = '/home/ole/webssh/project-control-service.js';
+    restartRequired = filesDiffer(sourceServer, activeServer) || filesDiffer(sourceProjectControl, activeProjectControl);
     const command = [
       'set -e',
       `sudo /usr/bin/install -o www-data -g www-data -m 644 ${JSON.stringify(path.join(project.repo, 'index.html'))} /var/www/epikur-dashboard/index.html`,
@@ -209,6 +222,7 @@ async function deployProject(project) {
       `sudo /usr/bin/rsync -a --delete ${JSON.stringify(path.join(project.repo, 'images/'))} /var/www/epikur-dashboard/images/`,
       `/usr/bin/install -o ole -g ole -m 644 ${JSON.stringify(path.join(project.repo, 'server/chat.html'))} /home/ole/webssh/public/chat.html`,
       `/usr/bin/install -o ole -g ole -m 644 ${JSON.stringify(sourceServer)} ${JSON.stringify(activeServer)}`,
+      `/usr/bin/install -o ole -g ole -m 644 ${JSON.stringify(sourceProjectControl)} ${JSON.stringify(activeProjectControl)}`,
     ].join(' && ');
     await runShell(command, 2 * 60 * 1000);
   }
@@ -734,6 +748,112 @@ app.delete('/api/admin/users/:id', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// --- Practio Projektsteuerung ---
+const projectControlLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: { error: 'Zu viele Projektsteuerungs-Anfragen. Bitte kurz warten.' },
+});
+
+app.get('/api/project-control/workspace', requireApiAuth, async (req, res) => {
+  try {
+    res.json(await projectControl.getWorkspace());
+  } catch (error) {
+    console.error('Project Control workspace failed:', error.message);
+    res.status(500).json({ error: 'Projekt-Daten konnten nicht geladen werden.' });
+  }
+});
+
+app.post('/api/project-control/resources/:table', requireApiAuth, projectControlLimiter, async (req, res) => {
+  const table = req.params.table;
+  if (!projectControl.allowedTables.has(table) || table === 'activity_log') {
+    return res.status(404).json({ error: 'Ressource nicht gefunden.' });
+  }
+  try {
+    const resource = await projectControl.saveResource(table, req.body || {});
+    await projectControl.logActivity({
+      projectId: resource.project_id || projectControl.projectId,
+      taskId: resource.task_id || (table === 'tasks' ? resource.id : null),
+      actor: req.session.username,
+      action: `${table}.saved`,
+      source: 'dashboard',
+      details: { resourceId: resource.id },
+    });
+    res.json(resource);
+  } catch (error) {
+    console.error(`Project Control ${table} save failed:`, error.message);
+    res.status(400).json({ error: error.message || 'Speichern fehlgeschlagen.' });
+  }
+});
+
+app.delete('/api/project-control/resources/:table/:id', requireApiAuth, projectControlLimiter, async (req, res) => {
+  const table = req.params.table;
+  if (!projectControl.allowedTables.has(table) || table === 'activity_log') {
+    return res.status(404).json({ error: 'Ressource nicht gefunden.' });
+  }
+  try {
+    await projectControl.deleteResource(table, req.params.id);
+    await projectControl.logActivity({
+      actor: req.session.username,
+      action: `${table}.deleted`,
+      source: 'dashboard',
+      details: { resourceId: req.params.id },
+    });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error(`Project Control ${table} delete failed:`, error.message);
+    res.status(400).json({ error: error.message || 'Löschen fehlgeschlagen.' });
+  }
+});
+
+app.post('/api/project-control/tasks/:id/github/sync', requireApiAuth, projectControlLimiter, async (req, res) => {
+  try {
+    const status = await projectControl.syncGithub(req.body || {});
+    const link = await projectControl.saveResource('github_links', {
+      ...(req.body.link || {}),
+      task_id: req.params.id,
+      ...status,
+    });
+    await projectControl.logActivity({
+      taskId: req.params.id,
+      actor: req.session.username,
+      action: 'github.status_synced',
+      source: 'github',
+      details: { mode: status.mode, repository: status.repository, prUrl: status.pr_url || null },
+    });
+    res.json(link);
+  } catch (error) {
+    console.error('Project Control GitHub sync failed:', error.message);
+    res.status(400).json({ error: error.message || 'GitHub-Status konnte nicht geladen werden.' });
+  }
+});
+
+app.post('/api/project-control/tasks/:id/review', requireApiAuth, projectControlLimiter, async (req, res) => {
+  try {
+    const workspace = await projectControl.getWorkspace();
+    const task = workspace.tasks.find((entry) => entry.id === req.params.id) || req.body.task;
+    if (!task) return res.status(404).json({ error: 'Task nicht gefunden.' });
+    const review = await projectControl.reviewTask(task, req.body || {});
+    const stored = await projectControl.saveResource('ai_reviews', {
+      task_id: req.params.id,
+      commit_hash: req.body.commit_hash || '',
+      pr_url: req.body.pr_url || '',
+      ...review,
+    });
+    await projectControl.logActivity({
+      taskId: req.params.id,
+      actor: req.session.username,
+      action: 'ai.review_completed',
+      source: 'ai',
+      details: { provider: review.provider, result: review.result },
+    });
+    res.json(stored);
+  } catch (error) {
+    console.error('Project Control AI review failed:', error.message);
+    res.status(500).json({ error: 'AI-Review konnte nicht abgeschlossen werden.' });
+  }
+});
+
 // --- Preview-Einstellungen (per User) ---
 const PREVIEW_SETTINGS_FILE = path.join(CHAT_DATA_DIR, 'preview-settings.json');
 function readPreviewSettings() {
@@ -950,14 +1070,16 @@ app.post('/api/claude/publish', requireApiAuth, (req, res) => {
     .replace(/[\r\n]+/g, ' ')
     .slice(0, 120);
 
-  const publish = publishQueue.catch(() => {}).then(() => publishToMain(project, commitMessage));
+  const publish = publishQueue.catch(() => {}).then(() => publishReviewBranch(project, commitMessage));
   publishQueue = publish;
   publish
     .then((result) => res.json({ ok: true, project: project.id, ...result }))
     .catch((error) => {
-      console.error('Publish to main failed:', error.stderr || error.message);
-      res.status(500).json({
-        error: 'Veröffentlichung nach main fehlgeschlagen. Details stehen im Server-Log.',
+      console.error('Review branch publish failed:', error.stderr || error.message);
+      res.status(error.code === 'MAIN_PUSH_BLOCKED' ? 409 : 500).json({
+        error: error.code === 'MAIN_PUSH_BLOCKED'
+          ? error.message
+          : 'Review-Branch konnte nicht gepusht werden. Details stehen im Server-Log.',
         stage: 'push',
       });
     });
@@ -982,7 +1104,7 @@ app.post('/api/claude/deploy', requireApiAuth, (req, res) => {
     .catch((error) => {
       console.error('Production deploy failed:', error.stderr || error.message);
       res.status(500).json({
-        error: 'Deployment fehlgeschlagen. main wurde bereits aktualisiert.',
+        error: 'Deployment fehlgeschlagen. Es wurde kein automatischer Merge oder Main-Push ausgeführt.',
         stage: 'deploy',
       });
     });

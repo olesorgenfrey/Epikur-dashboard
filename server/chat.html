@@ -195,7 +195,7 @@
       <div><div class="preview-title">Isolierte Preview</div><div class="preview-url" id="previewLabel">Preview wird geladen...</div></div>
       <div class="preview-actions">
         <button id="reloadPreview" type="button">↻ Neu laden</button>
-        <button class="publish-trigger" id="publishOpen" type="button">Publish</button>
+        <button class="publish-trigger" id="publishOpen" type="button">Review-Branch</button>
         <a id="openPreview" href="https://dashboard.praxis-sorgenfrey.de:8443" target="_blank" rel="noopener">Neuer Tab ↗</a>
       </div>
     </header>
@@ -205,7 +205,7 @@
 <div class="publish-overlay" id="publishOverlay" hidden>
   <aside class="publish-panel" role="dialog" aria-modal="true" aria-labelledby="publishTitle">
     <div class="publish-head">
-      <div><h2 id="publishTitle">Publish</h2><p>Änderungen nach main bringen und live deployen.</p></div>
+      <div><h2 id="publishTitle">Review-Branch pushen</h2><p>Feature-Branch aktualisieren. Merge und Deployment bleiben manuell.</p></div>
       <button class="publish-close" id="publishClose" type="button" aria-label="Panel schließen">×</button>
     </div>
     <div class="publish-body">
@@ -216,25 +216,25 @@
       <ol class="publish-steps">
         <li class="publish-step" data-publish-step="push">
           <span class="publish-step-mark">1</span>
-          <div><strong>Nach main veröffentlichen</strong><small>Offene Änderungen committen, rebasen und pushen.</small></div>
+          <div><strong>Feature-Branch pushen</strong><small>Offene Änderungen committen, auf main rebasen und den aktuellen Branch pushen.</small></div>
         </li>
-        <li class="publish-step" data-publish-step="deploy">
+        <li class="publish-step" data-publish-step="deploy" hidden>
           <span class="publish-step-mark">2</span>
           <div><strong>Produktion deployen</strong><small>Die Produktionsversion wird neu gebaut und gestartet.</small></div>
         </li>
-        <li class="publish-step" data-publish-step="live">
+        <li class="publish-step" data-publish-step="live" hidden>
           <span class="publish-step-mark">3</span>
           <div><strong>Live prüfen</strong><small>Der echte Produktionsendpunkt wird kontrolliert.</small></div>
         </li>
       </ol>
       <div class="publish-result" id="publishResult" hidden>
-        <div class="publish-result-title"><span class="live-signal"></span><span id="publishResultTitle">Jetzt live</span></div>
+        <div class="publish-result-title"><span class="live-signal"></span><span id="publishResultTitle">Branch bereit</span></div>
         <p id="publishResultText"></p>
         <a id="publishLiveLink" target="_blank" rel="noopener">Live-Version öffnen ↗</a>
       </div>
     </div>
     <div class="publish-footer">
-      <button class="publish-confirm" id="publishConfirm" type="button">Publish</button>
+      <button class="publish-confirm" id="publishConfirm" type="button">Branch pushen</button>
     </div>
   </aside>
 </div>
@@ -314,13 +314,11 @@
   function resetPublishPanel(selected) {
     publishResult.hidden = true;
     publishConfirm.disabled = false;
-    publishConfirm.textContent = 'Publish';
+    publishConfirm.textContent = 'Branch pushen';
     document.getElementById('publishProjectName').textContent = selected?.label || 'Projekt';
-    setPublishStep('push', '', 'Offene Änderungen committen, rebasen und pushen.');
-    setPublishStep('deploy', '', 'Die Produktionsversion wird neu gebaut und gestartet.');
-    setPublishStep('live', '', 'Der echte Produktionsendpunkt wird kontrolliert.');
-    document.querySelector('[data-publish-step="deploy"]').hidden = !selected?.canDeploy;
-    document.querySelector('[data-publish-step="live"]').hidden = !selected?.canDeploy;
+    setPublishStep('push', '', 'Offene Änderungen committen, auf main rebasen und den Feature-Branch pushen.');
+    document.querySelector('[data-publish-step="deploy"]').hidden = true;
+    document.querySelector('[data-publish-step="live"]').hidden = true;
   }
 
   async function openPublishPanel() {
@@ -331,9 +329,9 @@
     try {
       const status = await api(`/api/claude/git-status?project=${encodeURIComponent(project.value)}`);
       if (status.dirty) {
-        publishSummary.textContent = `${status.files.length} offene ${status.files.length === 1 ? 'Datei' : 'Dateien'} werden veröffentlicht${selected?.canDeploy ? ' und danach live deployt' : ''}.`;
+        publishSummary.textContent = `${status.files.length} offene ${status.files.length === 1 ? 'Datei' : 'Dateien'} werden auf dem aktiven Feature-Branch veröffentlicht.`;
       } else {
-        publishSummary.textContent = `Der Arbeitsbaum ist sauber. Bereits vorhandene Commits werden ebenfalls geprüft${selected?.canDeploy ? ' und live deployt' : ''}.`;
+        publishSummary.textContent = 'Der Arbeitsbaum ist sauber. Bereits vorhandene Branch-Commits werden ebenfalls geprüft.';
       }
     } catch (error) {
       publishSummary.textContent = error.message;
@@ -363,11 +361,11 @@
     if (!selected) return;
     publishBusy = true;
     publishConfirm.disabled = true;
-    publishConfirm.textContent = 'Veröffentliche...';
+    publishConfirm.textContent = 'Pushe Branch...';
     publishResult.hidden = true;
     let activeStep = 'push';
     try {
-      setPublishStep('push', 'active', 'Änderungen und vorhandene Commits werden nach main gebracht...');
+      setPublishStep('push', 'active', 'Änderungen werden committed, auf main rebased und auf den aktiven Feature-Branch gepusht...');
       const published = await api('/api/claude/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -377,40 +375,23 @@
         }),
       });
       const pushDetail = published.noChanges
-        ? `main war bereits aktuell · Commit ${published.commit}`
-        : `${published.pushedCommits} ${published.pushedCommits === 1 ? 'Commit' : 'Commits'} veröffentlicht · ${published.files.length} ${published.files.length === 1 ? 'Datei' : 'Dateien'}`;
+        ? `Branch ${published.branch} war bereits aktuell · Commit ${published.commit}`
+        : `${published.pushedCommits} ${published.pushedCommits === 1 ? 'Commit' : 'Commits'} auf ${published.branch} gepusht · ${published.files.length} ${published.files.length === 1 ? 'Datei' : 'Dateien'}`;
       setPublishStep('push', 'done', pushDetail);
-
-      let deployed = null;
-      if (selected.canDeploy) {
-        activeStep = 'deploy';
-        setPublishStep('deploy', 'active', 'Produktionsversion wird gebaut und gestartet...');
-        deployed = await api('/api/claude/deploy', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ project: project.value }),
-        });
-        setPublishStep('deploy', 'done', 'Deployment abgeschlossen.');
-        activeStep = 'live';
-        setPublishStep('live', 'active', deployed.restartRequired ? 'Code-Tool startet neu...' : 'Produktionsendpunkt antwortet.');
-        if (deployed.restartRequired) await waitForServerRestart(deployed.serverStartedAt);
-        setPublishStep('live', 'done', 'Die neue Version ist erreichbar.');
-      }
 
       const resultTitle = document.getElementById('publishResultTitle');
       const resultText = document.getElementById('publishResultText');
       const liveLink = document.getElementById('publishLiveLink');
-      resultTitle.textContent = selected.canDeploy ? 'Jetzt live' : 'Auf main veröffentlicht';
+      resultTitle.textContent = 'Review-Branch bereit';
       resultText.textContent = published.noChanges
-        ? `Commit ${published.commit} war bereits auf main${selected.canDeploy ? ' und die Live-Version wurde geprüft.' : '.'}`
-        : `Commit ${published.commit} wurde veröffentlicht${selected.canDeploy ? ' und erfolgreich live bereitgestellt.' : '.'}`;
-      liveLink.hidden = !deployed?.liveUrl;
-      if (deployed?.liveUrl) liveLink.href = deployed.liveUrl;
+        ? `Commit ${published.commit} liegt bereits auf ${published.branch}.`
+        : `Commit ${published.commit} wurde auf ${published.branch} gepusht. Als Nächstes: Pull Request, Checks und manuelle Freigabe.`;
+      liveLink.hidden = true;
       publishResult.hidden = false;
-      publishSummary.textContent = selected.canDeploy ? 'Veröffentlichung und Live-Deployment sind abgeschlossen.' : 'Die Veröffentlichung nach main ist abgeschlossen.';
+      publishSummary.textContent = 'Der Feature-Branch ist bereit. Es wurde weder gemergt noch deployt.';
       publishConfirm.textContent = 'Fertig';
-      publishOpen.textContent = selected.canDeploy ? '✓ Live' : '✓ Published';
-      setTimeout(() => { publishOpen.textContent = 'Publish'; }, 5_000);
+      publishOpen.textContent = '✓ Branch';
+      setTimeout(() => { publishOpen.textContent = 'Review-Branch'; }, 5_000);
     } catch (error) {
       setPublishStep(error.stage || activeStep, 'error', error.message);
       publishSummary.textContent = error.message;
@@ -460,11 +441,11 @@
     for (const a of acts) {
       if (a.action === 'create_task') {
         const p = persons.find(x => x.id === a.assignee_id);
-        tasks = [...tasks, { id: Date.now().toString() + (Math.random() * 1000 | 0), text: a.text, meta: '', assignee_id: a.assignee_id, done: false, priority: 'medium' }];
+        tasks = [...tasks, { id: Date.now().toString() + (Math.random() * 1000 | 0), title: a.text, text: a.text, meta: '', assignee_id: a.assignee_id, done: false, status: 'backlog', priority: 'medium' }];
         results.push(`Task erstellt: "${a.text}"${p ? ` → ${p.name}` : ''}`);
       } else if (a.action === 'toggle_task') {
         const t = tasks.find(x => x.id === a.id);
-        tasks = tasks.map(x => x.id === a.id ? { ...x, done: a.done } : x);
+        tasks = tasks.map(x => x.id === a.id ? { ...x, done: a.done, status: a.done ? 'done' : (x.status === 'done' ? 'backlog' : x.status || 'backlog') } : x);
         results.push(`"${t?.text || a.id}" ${a.done ? 'abgehakt' : 'geöffnet'}`);
       } else if (a.action === 'delete_task') {
         const t = tasks.find(x => x.id === a.id);
@@ -931,6 +912,12 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
+      if (data.pending) {
+        setModalMode('login');
+        modalError.textContent = data.message || 'Account erstellt. Der Admin muss dich erst freischalten — danach kannst du dich anmelden.';
+        modalError.style.display = 'block';
+        return;
+      }
       setUser(data.username);
       hideModal();
       await loadChats();

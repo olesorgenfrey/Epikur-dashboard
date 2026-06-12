@@ -177,6 +177,49 @@ input::placeholder{color:var(--t3)}select option{background:#14161E}
 .aichat-in{padding:12px 18px 16px;border-top:1px solid rgba(255,255,255,.08);flex-shrink:0}
 .aichat-ta{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:var(--t);padding:9px 12px;border-radius:10px;font-size:13px;font-family:'Inter',sans-serif;outline:none;resize:none;line-height:1.5;max-height:100px;overflow-y:auto;transition:border-color 150ms}
 .aichat-ta:focus{border-color:var(--a)}.aichat-ta::placeholder{color:var(--t3)}
+/* PROJECT CONTROL */
+.pc-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;margin-bottom:16px;border-radius:10px;background:rgba(110,168,255,.09);border:1px solid rgba(110,168,255,.22);font-size:11px;color:#C8DCFF;font-family:'IBM Plex Mono',monospace}
+.pc-banner.warn{background:rgba(251,191,36,.08);border-color:rgba(251,191,36,.24);color:#FDE68A}
+.pc-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.pc-span-12{grid-column:span 12}.pc-span-8{grid-column:span 8}.pc-span-7{grid-column:span 7}.pc-span-6{grid-column:span 6}.pc-span-5{grid-column:span 5}.pc-span-4{grid-column:span 4}
+.pc-card{padding:18px 20px}.pc-card h2{font-size:13px;font-weight:600;margin-bottom:13px}.pc-help{font-size:11px;color:var(--t3);line-height:1.6;margin-top:5px}
+.pc-label{display:block;font-size:10px;font-weight:600;letter-spacing:.65px;text-transform:uppercase;color:var(--t3);margin-bottom:6px}
+.pc-field{margin-bottom:14px}.pc-field:last-child{margin-bottom:0}
+textarea{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--gborder);color:var(--t);padding:10px 12px;border-radius:9px;font-size:12px;font-family:'Inter',sans-serif;outline:none;resize:vertical;line-height:1.55;transition:border-color 160ms}
+textarea:focus{border-color:var(--a)}textarea::placeholder{color:var(--t3)}
+.pc-input{width:100%}.pc-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pc-actions.end{justify-content:flex-end}
+.pc-list{display:flex;flex-direction:column;gap:8px}.pc-list-row{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)}.pc-list-row:last-child{border-bottom:0}
+.pc-dot{width:7px;height:7px;border-radius:50%;background:var(--a);margin-top:5px;flex-shrink:0}
+.pc-version{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.focus-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:14px;margin-bottom:18px}
+.focus-main{padding:20px;background:linear-gradient(135deg,rgba(110,168,255,.13),rgba(110,168,255,.03))}
+.focus-kicker{font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:#A8C8FF;font-family:'IBM Plex Mono',monospace;margin-bottom:9px}.focus-title{font-size:18px;font-weight:650;line-height:1.35}.focus-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.focus-side{padding:18px}.focus-side .ct{display:block;margin-bottom:11px}.focus-task{font-size:12px;line-height:1.5;color:var(--t2);padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)}.focus-task:last-child{border-bottom:0}
+.kanban{display:grid;grid-template-columns:repeat(6,minmax(180px,1fr));gap:12px;overflow-x:auto;padding-bottom:8px;align-items:start}
+.kcol{min-height:360px;background:rgba(6,7,10,.36);border:1px solid rgba(255,255,255,.12);border-radius:13px;overflow:hidden}
+.khead{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;border-bottom:1px solid rgba(255,255,255,.09);position:sticky;top:0;background:rgba(11,13,19,.92);backdrop-filter:blur(12px);z-index:2}
+.kname{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:650}.kstatus{width:7px;height:7px;border-radius:50%}.kcount{font-size:10px;color:var(--t3);font-family:'IBM Plex Mono',monospace}
+.kbody{padding:9px;display:flex;flex-direction:column;gap:9px}
+.task-card{width:100%;text-align:left;padding:12px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--t);font-family:inherit;cursor:pointer;transition:transform 160ms var(--ease),border-color 160ms var(--ease),background 160ms var(--ease)}
+.task-card:hover{transform:translateY(-1px);border-color:rgba(110,168,255,.35);background:rgba(110,168,255,.07)}.task-card:focus-visible{outline:2px solid var(--a);outline-offset:2px}
+.task-card-title{font-size:12px;font-weight:600;line-height:1.45}.task-card-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:9px}.mini-tag{display:inline-flex;align-items:center;min-height:22px;padding:3px 7px;border-radius:6px;background:rgba(255,255,255,.06);font-size:9px;color:var(--t2);font-family:'IBM Plex Mono',monospace}
+.task-card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:9px;color:var(--t3);font-family:'IBM Plex Mono',monospace}.task-gh{display:flex;align-items:center;gap:5px}
+.empty-col{padding:24px 10px;text-align:center;color:var(--t3);font-size:10px;line-height:1.7;font-family:'IBM Plex Mono',monospace}
+.pc-overlay{position:fixed;inset:0;z-index:8500;background:rgba(0,0,0,.64);backdrop-filter:blur(5px);display:flex;justify-content:flex-end}
+.pc-drawer{width:min(720px,100%);height:100%;overflow-y:auto;background:#0B0D13;border-left:1px solid rgba(255,255,255,.14);padding:24px;animation:drawerIn 240ms var(--ease) both}
+.drawer-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:18px;border-bottom:1px solid rgba(255,255,255,.09);margin-bottom:18px}.drawer-title{font-size:20px;font-weight:650}.icon-btn{width:44px;height:44px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--t2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.form-full{grid-column:1/-1}
+.check-row{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)}.check-row input[type=checkbox]{width:18px;height:18px;min-height:0}.check-label{flex:1;font-size:12px;color:var(--t2)}.comment{padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)}.comment-head{display:flex;justify-content:space-between;gap:8px;font-size:10px;color:var(--t3);font-family:'IBM Plex Mono',monospace}.comment-body{font-size:12px;line-height:1.55;margin-top:5px;color:var(--t2)}
+.workflow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:18px}.workflow-step{padding:6px 9px;border-radius:7px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.035);font-size:9px;color:var(--t2);font-family:'IBM Plex Mono',monospace}.workflow-arrow{color:var(--t3);font-size:10px}
+.gh-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:12px 0}.gh-state{padding:10px;border-radius:9px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.09);font-size:9px;line-height:1.5;color:var(--t3);font-family:'IBM Plex Mono',monospace}.gh-state.on{color:#BBF7D0;border-color:rgba(74,222,128,.26);background:rgba(74,222,128,.07)}
+.review-result{padding:16px;border-radius:11px;border:1px solid rgba(255,255,255,.12);margin-top:14px}.review-result.ready{background:rgba(74,222,128,.07);border-color:rgba(74,222,128,.25)}.review-result.changes_needed{background:rgba(251,191,36,.07);border-color:rgba(251,191,36,.25)}.review-result.reject{background:rgba(248,113,113,.07);border-color:rgba(248,113,113,.25)}.review-heading{font-size:15px;font-weight:650;margin-bottom:8px}.review-copy{font-size:12px;color:var(--t2);line-height:1.65}
+.team-card{padding:20px}.team-top{display:flex;align-items:center;gap:12px;margin-bottom:16px}.team-avatar{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:rgba(110,168,255,.14);border:1px solid rgba(110,168,255,.25);font-size:15px;font-weight:700}.team-name{font-size:16px;font-weight:650}.team-role{font-size:10px;color:var(--t3);font-family:'IBM Plex Mono',monospace;margin-top:3px}.responsibility{display:flex;gap:9px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px;color:var(--t2)}.responsibility:last-child{border-bottom:0}
+.activity-row{padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05)}.activity-row:last-child{border-bottom:0}.activity-action{font-size:11px;color:var(--t2)}.activity-meta{font-size:9px;color:var(--t3);font-family:'IBM Plex Mono',monospace;margin-top:4px}
+@keyframes drawerIn{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:translateX(0)}}
+@media(max-width:1180px){.focus-grid{grid-template-columns:1fr 1fr}.focus-main{grid-column:1/-1}.pc-span-8,.pc-span-7,.pc-span-5,.pc-span-4{grid-column:span 6}.gh-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:760px){
+  .app{padding:10px;display:block}.sb{position:relative;top:0;width:100%;height:auto;display:flex;flex-direction:row;overflow-x:auto;padding:8px 0 12px;margin-bottom:10px}.logo,.nlbl,.sbfoot{display:none}.ni{flex:0 0 auto;width:auto;margin:0 3px;padding:10px}.main{padding:0}.ph{align-items:flex-start;gap:12px}.ptitle{font-size:34px}.sgrid,.g2,.focus-grid,.pc-grid{grid-template-columns:1fr}.pc-span-12,.pc-span-8,.pc-span-7,.pc-span-6,.pc-span-5,.pc-span-4{grid-column:span 1}.kanban{display:flex;flex-direction:column;overflow:visible}.kcol{width:100%;min-height:auto}.form-grid{grid-template-columns:1fr}.gh-grid{grid-template-columns:1fr 1fr}.pc-drawer{padding:18px}.savepill{display:none}.aichat-btn{bottom:16px}.aichat-panel{width:100%;right:-100%}
+}
 </style>
 </head>
 <body>
@@ -327,7 +370,21 @@ const TTYD_URL="/terminal-login";
 
 const H={apikey:SB_ANON,Authorization:`Bearer ${SB_ANON}`,"Content-Type":"application/json",Prefer:"return=representation"};
 const STORAGE_KEY="practio-dashboard-v1";
-const EMPTY_DATA={persons:[],leads:[],tasks:[],milestones:[],costs:[],scenarios:[],drafts:{}};
+const PROJECT_ID="10000000-0000-4000-8000-000000000001";
+const DEFAULT_MASTERPLAN={
+  id:"10000000-0000-4000-8000-000000000002",project_id:PROJECT_ID,
+  product_goal:"Practio wird die verlässliche digitale Arbeitsumgebung für psychotherapeutische Praxen.",
+  mvp_goal:"Ein sicherer, verständlicher Kernworkflow, der im Praxisalltag ohne Schulungsaufwand nutzbar ist.",
+  modules:["Praxisverwaltung","Patientenportal","Dokumentation","Abrechnung","Betrieb & Sicherheit"],
+  risks:["Datenschutz und Schweigepflicht","Zu großer MVP-Umfang","Fehlende echte Praxis-Tests"],
+  open_questions:["Welche drei Workflows sparen Praxen zuerst messbar Zeit?","Welche Daten müssen zum MVP exportierbar sein?"],
+  version:1,created_at:new Date().toISOString(),updated_at:new Date().toISOString()
+};
+const DEFAULT_TEAM=[
+  {id:"10000000-0000-4000-8000-000000000003",project_id:PROJECT_ID,name:"Ole",role:"Product & Tech Lead",responsibilities:["Produktentscheidungen","Technische Hauptaufgaben","Reviews","Feature-Priorisierung"],color:"blue",active:true},
+  {id:"10000000-0000-4000-8000-000000000004",project_id:PROJECT_ID,name:"Henry",role:"Research & Operations",responsibilities:["Recherche","Dokumentation","Tests","Einfache UI- und Content-Aufgaben","Praxislisten","Wettbewerbsanalyse","Marketing-Vorbereitung"],color:"purple",active:true},
+];
+const EMPTY_DATA={persons:[],leads:[],tasks:[],milestones:[],costs:[],scenarios:[],masterplans:[],teamMembers:[],taskComments:[],checklistItems:[],githubLinks:[],aiReviews:[],activityLog:[],projectMode:"local",drafts:{}};
 const MILESTONE_SEED_VERSION=2;
 const LEGACY_MILESTONE_IDS=new Set([
   "00000000-0000-4000-8000-000000000001",
@@ -349,6 +406,18 @@ const loadLocal=()=>{
   try{
     const stored=JSON.parse(localStorage.getItem(STORAGE_KEY)||"{}");
     const data={...EMPTY_DATA,...stored};
+    if(!Array.isArray(data.masterplans)||!data.masterplans.length)data.masterplans=[{...DEFAULT_MASTERPLAN}];
+    if(!Array.isArray(data.teamMembers)||!data.teamMembers.length)data.teamMembers=DEFAULT_TEAM.map(member=>({...member,responsibilities:[...member.responsibilities]}));
+    data.tasks=(Array.isArray(data.tasks)?data.tasks:[]).map((task,index)=>({
+      ...task,
+      title:task.title||task.text||"Unbenannter Task",
+      text:task.title||task.text||"Unbenannter Task",
+      status:task.status||(task.done?"done":"backlog"),
+      acceptance_criteria:Array.isArray(task.acceptance_criteria)?task.acceptance_criteria:[],
+      definition_of_done:Array.isArray(task.definition_of_done)?task.definition_of_done:[],
+      dependencies:Array.isArray(task.dependencies)?task.dependencies:[],
+      sort_order:Number(task.sort_order)||index,
+    }));
     if((stored.milestoneSeedVersion||0)<MILESTONE_SEED_VERSION){
       const customMilestones=(Array.isArray(stored.milestones)?stored.milestones:[])
         .filter(m=>!LEGACY_MILESTONE_IDS.has(m.id));
@@ -360,7 +429,15 @@ const loadLocal=()=>{
     }
     return data;
   }
-  catch{return {...EMPTY_DATA,milestones:DEFAULT_MILESTONES.map(m=>({...m})),milestoneSeedVersion:MILESTONE_SEED_VERSION};}
+  catch{return {...EMPTY_DATA,masterplans:[{...DEFAULT_MASTERPLAN}],teamMembers:DEFAULT_TEAM.map(m=>({...m,responsibilities:[...m.responsibilities]})),milestones:DEFAULT_MILESTONES.map(m=>({...m})),milestoneSeedVersion:MILESTONE_SEED_VERSION};}
+};
+const makeId=()=>window.crypto?.randomUUID?.()||`00000000-0000-4000-8000-${Date.now().toString().padStart(12,"0").slice(-12)}`;
+const pcApi={
+  workspace:async()=>{const r=await fetch("/api/project-control/workspace",{cache:"no-store"});if(!r.ok)throw new Error("Projekt-API nicht erreichbar");return r.json();},
+  save:async(table,row)=>{const r=await fetch(`/api/project-control/resources/${table}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(row)});if(!r.ok)throw new Error((await r.json()).error||"Speichern fehlgeschlagen");return r.json();},
+  del:async(table,id)=>{const r=await fetch(`/api/project-control/resources/${table}/${id}`,{method:"DELETE"});if(!r.ok)throw new Error("Löschen fehlgeschlagen");return r.json();},
+  github:async(taskId,body)=>{const r=await fetch(`/api/project-control/tasks/${taskId}/github/sync`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json()).error||"GitHub-Sync fehlgeschlagen");return r.json();},
+  review:async(taskId,body)=>{const r=await fetch(`/api/project-control/tasks/${taskId}/review`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json()).error||"Review fehlgeschlagen");return r.json();},
 };
 const sb={
   get:async(t,q="")=>{const r=await fetch(`${SB_URL}/rest/v1/${t}?${q}`,{headers:H});if(!r.ok)throw new Error(await r.text());return r.json();},
@@ -373,6 +450,9 @@ const ic={
   overview:"M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10",
   leads:"M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
   tasks:"M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11",
+  masterplan:"M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M4 4.5A2.5 2.5 0 0 1 6.5 2H20v15H6.5A2.5 2.5 0 0 0 4 19.5z M8 7h8 M8 11h6",
+  team:"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75",
+  review:"M9 12l2 2 4-4 M21 12a9 9 0 1 1-9-9 M21 3v6h-6",
   milestones:"M12 22V12 M12 7V2 M2 18h20 M4 22h16",
   finance:"M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6",
   code:"M16 18l6-6-6-6 M8 6l-6 6 6 6",
@@ -386,15 +466,21 @@ const Ic=({d,size=16,color="currentColor"})=>(
 const BG={
   overview:"assets/bg-overview.png",
   leads:"assets/bg-leads.png",
+  masterplan:"assets/bg-milestones.png",
   tasks:"assets/bg-tasks.jpg",
+  team:"assets/bg-overview.png",
+  review:"assets/bg-code.jpg",
   milestones:"assets/bg-milestones.png",
   finance:"assets/bg-finance.png",
   code:"",
 };
 const NAV=[
   {id:"overview",label:"Übersicht",icon:ic.overview},
+  {id:"masterplan",label:"Masterplan",icon:ic.masterplan},
   {id:"leads",label:"Leads",icon:ic.leads},
-  {id:"tasks",label:"Tasks",icon:ic.tasks},
+  {id:"tasks",label:"Task Board",icon:ic.tasks},
+  {id:"team",label:"Team",icon:ic.team},
+  {id:"review",label:"AI Review",icon:ic.review},
   {id:"milestones",label:"Meilensteine",icon:ic.milestones},
   {id:"finance",label:"Finanzen",icon:ic.finance},
   {id:"code",label:"Code",icon:ic.code},
@@ -406,6 +492,27 @@ const STATUS={
   abgelehnt:{label:"Abgelehnt",cls:"bd-rd"},
 };
 const COLS=["bd-bl","bd-pu","bd-gn","bd-yw","bd-rd"];
+const TASK_STATUSES=[
+  {id:"backlog",label:"Backlog",color:"#9CA3AF"},
+  {id:"this_week",label:"Diese Woche",color:"#6EA8FF"},
+  {id:"in_progress",label:"In Arbeit",color:"#C084FC"},
+  {id:"review",label:"Review",color:"#FBBF24"},
+  {id:"blocked",label:"Blockiert",color:"#F87171"},
+  {id:"done",label:"Fertig",color:"#4ADE80"},
+];
+const PRIORITY_WEIGHT={high:3,medium:2,low:1};
+const taskName=task=>task.title||task.text||"Unbenannter Task";
+const memberFor=(task,members)=>members.find(member=>member.id===(task.team_member_id||task.assignee_id));
+function nextSensibleTask(tasks){
+  const done=new Set(tasks.filter(task=>task.status==="done"||task.done).map(task=>task.id));
+  return tasks
+    .filter(task=>!["done","blocked","review"].includes(task.status||"backlog"))
+    .filter(task=>(task.dependencies||[]).every(id=>done.has(id)))
+    .sort((a,b)=>{
+      const statusScore={in_progress:4,this_week:3,backlog:2}[b.status||"backlog"]-{in_progress:4,this_week:3,backlog:2}[a.status||"backlog"];
+      return statusScore||(PRIORITY_WEIGHT[b.priority]||0)-(PRIORITY_WEIGHT[a.priority]||0)||(a.sort_order||0)-(b.sort_order||0);
+    })[0]||null;
+}
 
 function Dbb({s}){
   if(s==="ok")return <div className="dbb dbo"><span>●</span> Supabase verbunden — Live-Daten</div>;
@@ -423,7 +530,48 @@ function SC({name,value,cap,color,icon,delay}){
   );
 }
 
-function Overview({leads,tasks,persons,db}){
+function DailyFocus({tasks,teamMembers}){
+  const focus=tasks
+    .filter(task=>task.status==="in_progress")
+    .sort((a,b)=>(PRIORITY_WEIGHT[b.priority]||0)-(PRIORITY_WEIGHT[a.priority]||0))[0]||nextSensibleTask(tasks);
+  const nextTask=nextSensibleTask(tasks.filter(task=>task.id!==focus?.id));
+  const blockers=tasks.filter(task=>task.status==="blocked");
+  const ole=teamMembers.find(member=>member.name.toLowerCase()==="ole");
+  const henry=teamMembers.find(member=>member.name.toLowerCase()==="henry");
+  const ownTasks=member=>tasks.filter(task=>(task.team_member_id||task.assignee_id)===member?.id&&!["done"].includes(task.status));
+  return(
+    <div className="focus-grid">
+      <div className="gl focus-main">
+        <div className="focus-kicker">Daily Focus · wichtigste Aufgabe heute</div>
+        <div className="focus-title">{focus?taskName(focus):"Keine ausführbare Aufgabe vorhanden"}</div>
+        <div className="focus-meta">
+          {focus&&<><span className="badge bd-bl">{focus.priority||"medium"}</span><span className="mini-tag">{focus.module||"Ohne Modul"}</span><span className="mini-tag">{memberFor(focus,teamMembers)?.name||"Nicht zugewiesen"}</span></>}
+          {!focus&&<span className="pc-help">Lege einen Task an oder löse bestehende Blocker.</span>}
+        </div>
+      </div>
+      <div className="gl focus-side">
+        <span className="ct">Ole</span>
+        {ownTasks(ole).slice(0,3).map(task=><div className="focus-task" key={task.id}>{taskName(task)}</div>)}
+        {!ownTasks(ole).length&&<div className="tce">Keine offenen Tasks</div>}
+      </div>
+      <div className="gl focus-side">
+        <span className="ct">Henry</span>
+        {ownTasks(henry).slice(0,3).map(task=><div className="focus-task" key={task.id}>{taskName(task)}</div>)}
+        {!ownTasks(henry).length&&<div className="tce">Keine offenen Tasks</div>}
+      </div>
+      <div className="gl focus-side" style={{gridColumn:"1/-1"}}>
+        <span className="ct">Nächster sinnvoller Task</span>
+        <div className="focus-task">{nextTask?`${taskName(nextTask)} · ${memberFor(nextTask,teamMembers)?.name||"nicht zugewiesen"}`:"Keine weitere ausführbare Aufgabe vorhanden."}</div>
+      </div>
+      {blockers.length>0&&<div className="gl focus-side" style={{gridColumn:"1/-1"}}>
+        <span className="ct">Blocker</span>
+        {blockers.map(task=><div className="focus-task" key={task.id}>{taskName(task)} · {memberFor(task,teamMembers)?.name||"nicht zugewiesen"}</div>)}
+      </div>}
+    </div>
+  );
+}
+
+function Overview({leads,tasks,persons,teamMembers,db}){
   const s={
     total:leads.length,
     contacted:leads.filter(l=>l.status!=="offen").length,
@@ -451,6 +599,7 @@ function Overview({leads,tasks,persons,db}){
         <SC name="Offene Tasks" value={s.open} cap={`→ ${s.done} erledigt`} color="#C084FC" icon={ic.tasks} delay="160ms"/>
         <SC name="MRR" value="€0" cap="→ Ziel: €500 / Monat" color="#4ADE80" icon={ic.finance} delay="210ms"/>
       </div>
+      <DailyFocus tasks={tasks} teamMembers={teamMembers}/>
       <div className="g2">
         <div className="gl card" style={{animationDelay:"240ms"}}>
           <div className="ch"><span className="ct">Akquise-Funnel</span></div>
@@ -467,11 +616,11 @@ function Overview({leads,tasks,persons,db}){
         <div className="gl card" style={{animationDelay:"280ms"}}>
           <div className="ch"><span className="ct">Tasks pro Person</span></div>
           <div className="cb">
-            {persons.length===0?<div className="tce">Noch keine Personen</div>:persons.map((p,i)=>(
-              <div key={p.id} style={{display:"flex",alignItems:"center",gap:12,padding:"8px 0",borderBottom:i<persons.length-1?"1px solid rgba(255,255,255,.05)":"none"}}>
+            {teamMembers.length===0?<div className="tce">Noch keine Personen</div>:teamMembers.map((p,i)=>(
+              <div key={p.id} style={{display:"flex",alignItems:"center",gap:12,padding:"8px 0",borderBottom:i<teamMembers.length-1?"1px solid rgba(255,255,255,.05)":"none"}}>
                 <div className="av">{p.name[0]}</div>
                 <span style={{fontSize:13,fontWeight:600,flex:1}}>{p.name}</span>
-                <span className={`badge ${COLS[i%COLS.length]}`}>{tasks.filter(t=>t.assignee_id===p.id&&!t.done).length} offen</span>
+                <span className={`badge ${COLS[i%COLS.length]}`}>{tasks.filter(t=>(t.team_member_id||t.assignee_id)===p.id&&t.status!=="done").length} offen</span>
               </div>
             ))}
           </div>
@@ -641,7 +790,397 @@ function Tasks({tasks,setTasks,persons,setPersons,db}){
   );
 }
 
-function Milestones({milestones,setMilestones,db}){
+function ModeBanner({mode,warning}){
+  const fallback=mode!=="supabase";
+  return <div className={`pc-banner ${fallback?"warn":""}`}>
+    <span>{fallback?"Fallback-Modus · lokal/serverseitig gespeichert":"Supabase · Projekt-Daten verbunden"}</span>
+    <span>{warning||"GitHub- und AI-Zugriffe laufen ausschließlich über den Server."}</span>
+  </div>;
+}
+
+function MasterplanPage({masterplans,milestones,tasks,teamMembers,mode,warning,saveResource,onOpenBoard}){
+  const current=[...masterplans].sort((a,b)=>(b.version||0)-(a.version||0))[0]||DEFAULT_MASTERPLAN;
+  const [draft,setDraft]=useState({...current});
+  const [busy,setBusy]=useState(false);
+  const [message,setMessage]=useState("");
+  useEffect(()=>setDraft({...current}),[current.id,current.version]);
+  const asLines=value=>(Array.isArray(value)?value:[]).join("\n");
+  const fromLines=value=>value.split("\n").map(item=>item.trim()).filter(Boolean);
+  const saveVersion=async()=>{
+    setBusy(true);setMessage("");
+    const version=Math.max(0,...masterplans.map(item=>Number(item.version)||0))+1;
+    await saveResource("masterplans",{
+      ...draft,id:makeId(),project_id:PROJECT_ID,version,
+      modules:fromLines(asLines(draft.modules)),
+      risks:fromLines(asLines(draft.risks)),
+      open_questions:fromLines(asLines(draft.open_questions)),
+      created_at:new Date().toISOString(),
+    });
+    setBusy(false);setMessage(`Version ${version} gespeichert.`);
+  };
+  const generateTasks=async()=>{
+    const modules=fromLines(asLines(draft.modules));
+    if(!modules.length){setMessage("Mindestens ein Modul ist erforderlich.");return;}
+    setBusy(true);setMessage("");
+    const ole=teamMembers.find(member=>member.name.toLowerCase()==="ole");
+    const henry=teamMembers.find(member=>member.name.toLowerCase()==="henry");
+    const existing=new Set(tasks.map(task=>taskName(task).toLowerCase()));
+    let created=0;
+    for(const [index,module] of modules.entries()){
+      const researchTitle=`${module}: Anforderungen und Praxisfälle konkretisieren`;
+      const existingResearch=tasks.find(task=>taskName(task).toLowerCase()===researchTitle.toLowerCase());
+      const researchId=existingResearch?.id||makeId();
+      if(!existing.has(researchTitle.toLowerCase())){
+        await saveResource("tasks",{
+          id:researchId,project_id:PROJECT_ID,title:researchTitle,text:researchTitle,
+          description:`Recherche, Praxisanforderungen und offene Entscheidungen für das Modul ${module} dokumentieren.`,
+          acceptance_criteria:["Mindestens drei konkrete Praxisfälle dokumentiert","Offene Produktentscheidungen markiert","Ergebnis im Task kommentiert"],
+          definition_of_done:["Recherche geprüft","Dokumentation verlinkt"],priority:"medium",module,effort:"S",
+          team_member_id:henry?.id||null,dependencies:[],status:"backlog",done:false,sort_order:index*2,
+        });created++;
+      }
+      const buildTitle=`${module}: MVP-Slice umsetzen`;
+      if(!existing.has(buildTitle.toLowerCase())){
+        await saveResource("tasks",{
+          id:makeId(),project_id:PROJECT_ID,title:buildTitle,text:buildTitle,
+          description:`Kleinsten produktionsfähigen End-to-End-Slice für ${module} implementieren.`,
+          acceptance_criteria:["Kernworkflow funktioniert Ende-zu-Ende","Fehler- und Empty States vorhanden","Relevante Tests laufen","Keine Secrets im Frontend"],
+          definition_of_done:["Branch und Commit verknüpft","AI Review durchgeführt","PR-Checks bestanden","Manuelle Freigabe dokumentiert"],
+          priority:"high",module,effort:"M",team_member_id:ole?.id||null,
+          dependencies:[researchId],status:"backlog",done:false,sort_order:index*2+1,
+        });created++;
+      }
+    }
+    setBusy(false);setMessage(`${created} Tasks erzeugt.`);
+    if(created)setTimeout(onOpenBoard,450);
+  };
+  const updateList=(field,value)=>setDraft({...draft,[field]:value.split("\n")});
+  return(
+    <div className="page">
+      <div className="ph">
+        <div><h1 className="ptitle">Master<em>plan</em></h1><p className="psub">Produktplan · Version {current.version||1}</p></div>
+        <div className="pc-actions">
+          <button className="btn btn-g" onClick={saveVersion} disabled={busy}>Version speichern</button>
+          <button className="btn btn-p" onClick={generateTasks} disabled={busy}>{busy?"Arbeite…":"Tasks generieren"}</button>
+        </div>
+      </div>
+      <ModeBanner mode={mode} warning={warning}/>
+      {message&&<div className="dbb dbo">{message}</div>}
+      <div className="pc-grid">
+        <div className="gl pc-card pc-span-6">
+          <div className="pc-field"><label className="pc-label" htmlFor="productGoal">Produktziel</label><textarea id="productGoal" rows={5} value={draft.product_goal||""} onChange={e=>setDraft({...draft,product_goal:e.target.value})}/></div>
+        </div>
+        <div className="gl pc-card pc-span-6">
+          <div className="pc-field"><label className="pc-label" htmlFor="mvpGoal">MVP-Ziel</label><textarea id="mvpGoal" rows={5} value={draft.mvp_goal||""} onChange={e=>setDraft({...draft,mvp_goal:e.target.value})}/></div>
+        </div>
+        <div className="gl pc-card pc-span-4">
+          <h2>Module</h2>
+          <textarea rows={10} value={asLines(draft.modules)} onChange={e=>updateList("modules",e.target.value)} aria-label="Module, eine Zeile pro Eintrag"/>
+          <div className="pc-help">Eine Zeile pro Modul. Daraus werden Recherche- und Umsetzungstasks erzeugt.</div>
+        </div>
+        <div className="gl pc-card pc-span-4">
+          <h2>Risiken</h2>
+          <textarea rows={10} value={asLines(draft.risks)} onChange={e=>updateList("risks",e.target.value)} aria-label="Risiken, eine Zeile pro Eintrag"/>
+        </div>
+        <div className="gl pc-card pc-span-4">
+          <h2>Offene Fragen</h2>
+          <textarea rows={10} value={asLines(draft.open_questions)} onChange={e=>updateList("open_questions",e.target.value)} aria-label="Offene Fragen, eine Zeile pro Eintrag"/>
+        </div>
+        <div className="gl pc-card pc-span-7">
+          <h2>Milestones</h2>
+          {milestones.length===0?<div className="tce">Noch keine Milestones. Lege sie unter „Meilensteine“ an.</div>:milestones.map(item=>(
+            <div className="msr" key={item.id}>
+              <div className="msh"><span className="msd" style={{background:item.color}}></span><span className="msn">{item.label}</span><span className="msdt">{item.target_date||"laufend"}</span></div>
+              <div className="pt"><div className="pf" style={{width:`${item.progress||0}%`,background:item.color}}></div></div>
+            </div>
+          ))}
+        </div>
+        <div className="gl pc-card pc-span-5">
+          <h2>Versionierung</h2>
+          {[...masterplans].sort((a,b)=>(b.version||0)-(a.version||0)).map(item=>(
+            <div className="pc-version" key={item.id}>
+              <div><div style={{fontSize:12,fontWeight:600}}>Version {item.version}</div><div className="pc-help">{new Date(item.created_at||Date.now()).toLocaleString("de-DE")}</div></div>
+              {item.id===current.id&&<span className="badge bd-gn">Aktuell</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GithubStates({link}){
+  const states=[
+    ["Branch vorhanden",link?.branch_exists],
+    ["PR offen",link?.pr_open],
+    ["Checks bestanden",link?.checks_passed],
+    ["Review nötig",link?.review_needed],
+    ["Mergebereit",link?.merge_ready],
+  ];
+  return <div className="gh-grid">{states.map(([label,on])=><div className={`gh-state ${on?"on":""}`} key={label}>{on?"Aktiv":"Offen"}<br/>{label}</div>)}</div>;
+}
+
+function TaskDrawer({task,tasks,teamMembers,comments,checklist,githubLinks,saveResource,deleteResource,applyExternal,onClose}){
+  const [draft,setDraft]=useState({...task});
+  const [comment,setComment]=useState("");
+  const [checkLabel,setCheckLabel]=useState("");
+  const existingLink=githubLinks.find(link=>link.task_id===task.id);
+  const [link,setLink]=useState(existingLink||{
+    id:makeId(),task_id:task.id,repository:"olesorgenfrey/epikur",branch_name:"",commit_hash:"",pr_url:"",
+    branch_exists:false,pr_open:false,checks_passed:false,review_needed:true,merge_ready:false,
+  });
+  const [syncing,setSyncing]=useState(false);
+  const [error,setError]=useState("");
+  const lines=value=>(Array.isArray(value)?value:[]).join("\n");
+  const fromLines=value=>value.split("\n").map(item=>item.trim()).filter(Boolean);
+  const suggestBranch=()=>{
+    const slug=taskName(draft).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,42);
+    setLink({...link,branch_name:`feat/practio-${String(draft.id).slice(0,8)}-${slug}`});
+  };
+  const saveTask=async(close=true)=>{
+    const row={
+      ...draft,title:taskName(draft),text:taskName(draft),done:draft.status==="done",project_id:PROJECT_ID,
+      acceptance_criteria:fromLines(lines(draft.acceptance_criteria)),
+      definition_of_done:fromLines(lines(draft.definition_of_done)),
+    };
+    await saveResource("tasks",row);
+    if(close)onClose();
+    return row;
+  };
+  const addChecklist=async()=>{
+    if(!checkLabel.trim())return;
+    await saveTask(false);
+    await saveResource("task_checklist_items",{id:makeId(),task_id:draft.id,label:checkLabel.trim(),done:false,sort_order:checklist.filter(item=>item.task_id===draft.id).length});
+    setCheckLabel("");
+  };
+  const addComment=async()=>{
+    if(!comment.trim())return;
+    await saveTask(false);
+    await saveResource("task_comments",{id:makeId(),task_id:draft.id,author:window.__practioUser?.username||"Team",body:comment.trim()});
+    setComment("");
+  };
+  const syncGithub=async()=>{
+    setSyncing(true);setError("");
+    await saveTask(false);
+    try{
+      const synced=await pcApi.github(draft.id,{...link,link:{id:link.id}});
+      setLink(synced);applyExternal("github_links",synced);
+      applyExternal("activity_log",{id:makeId(),project_id:PROJECT_ID,task_id:draft.id,actor:window.__practioUser?.username||"Team",action:"github.status_synced",source:"github",details:{mode:synced.mode},created_at:new Date().toISOString()});
+    }catch(err){
+      const fallback={...link,branch_exists:Boolean(link.branch_name),pr_open:Boolean(link.pr_url),checks_passed:false,review_needed:true,merge_ready:false,last_synced_at:new Date().toISOString(),mode:"fallback"};
+      setLink(fallback);applyExternal("github_links",fallback);setError(`${err.message} · Fallback-Status gespeichert.`);
+    }
+    setSyncing(false);
+  };
+  const remove=async()=>{
+    if(!confirm(`"${taskName(draft)}" wirklich löschen?`))return;
+    await deleteResource("tasks",draft.id);onClose();
+  };
+  return(
+    <div className="pc-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <aside className="pc-drawer" role="dialog" aria-modal="true" aria-label="Task bearbeiten">
+        <div className="drawer-head">
+          <div><div className="focus-kicker">Task Detail</div><div className="drawer-title">{taskName(draft)}</div></div>
+          <button className="icon-btn" onClick={onClose} aria-label="Task schließen">✕</button>
+        </div>
+        <div className="workflow">
+          {["Plan","Task","Branch","Commit","AI Review","Pull Request","Checks","Freigabe","Merge"].map((step,index)=><React.Fragment key={step}><span className="workflow-step">{step}</span>{index<8&&<span className="workflow-arrow">→</span>}</React.Fragment>)}
+        </div>
+        <div className="form-grid">
+          <div className="pc-field form-full"><label className="pc-label">Titel</label><input className="pc-input" value={draft.title||draft.text||""} onChange={e=>setDraft({...draft,title:e.target.value,text:e.target.value})}/></div>
+          <div className="pc-field form-full"><label className="pc-label">Beschreibung</label><textarea rows={4} value={draft.description||""} onChange={e=>setDraft({...draft,description:e.target.value})}/></div>
+          <div className="pc-field"><label className="pc-label">Status</label><select className="pc-input" value={draft.status||"backlog"} onChange={e=>setDraft({...draft,status:e.target.value})}>{TASK_STATUSES.map(status=><option key={status.id} value={status.id}>{status.label}</option>)}</select></div>
+          <div className="pc-field"><label className="pc-label">Priorität</label><select className="pc-input" value={draft.priority||"medium"} onChange={e=>setDraft({...draft,priority:e.target.value})}><option value="high">Hoch</option><option value="medium">Mittel</option><option value="low">Niedrig</option></select></div>
+          <div className="pc-field"><label className="pc-label">Modul</label><input className="pc-input" value={draft.module||""} onChange={e=>setDraft({...draft,module:e.target.value})}/></div>
+          <div className="pc-field"><label className="pc-label">Aufwand</label><select className="pc-input" value={draft.effort||"M"} onChange={e=>setDraft({...draft,effort:e.target.value})}><option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option></select></div>
+          <div className="pc-field"><label className="pc-label">Bearbeiter</label><select className="pc-input" value={draft.team_member_id||""} onChange={e=>setDraft({...draft,team_member_id:e.target.value||null})}><option value="">Nicht zugewiesen</option>{teamMembers.map(member=><option key={member.id} value={member.id}>{member.name}</option>)}</select></div>
+          <div className="pc-field"><label className="pc-label">Abhängigkeiten</label><select multiple className="pc-input" style={{minHeight:88}} value={draft.dependencies||[]} onChange={e=>setDraft({...draft,dependencies:Array.from(e.target.selectedOptions).map(option=>option.value)})}>{tasks.filter(item=>item.id!==draft.id).map(item=><option key={item.id} value={item.id}>{taskName(item)}</option>)}</select></div>
+          <div className="pc-field form-full"><label className="pc-label">Akzeptanzkriterien · eine Zeile pro Kriterium</label><textarea rows={5} value={lines(draft.acceptance_criteria)} onChange={e=>setDraft({...draft,acceptance_criteria:e.target.value.split("\n")})}/></div>
+          <div className="pc-field form-full"><label className="pc-label">Definition of Done · eine Zeile pro Punkt</label><textarea rows={4} value={lines(draft.definition_of_done)} onChange={e=>setDraft({...draft,definition_of_done:e.target.value.split("\n")})}/></div>
+        </div>
+        <div className="gl pc-card" style={{marginTop:8}}>
+          <h2>GitHub-Verknüpfung</h2>
+          <div className="form-grid">
+            <div className="pc-field"><label className="pc-label">Repository</label><input className="pc-input" value={link.repository||""} onChange={e=>setLink({...link,repository:e.target.value})}/></div>
+            <div className="pc-field"><label className="pc-label">Branch</label><div className="pc-actions"><input style={{flex:1}} value={link.branch_name||""} onChange={e=>setLink({...link,branch_name:e.target.value})}/><button className="btn btn-g" onClick={suggestBranch}>Vorschlagen</button></div></div>
+            <div className="pc-field"><label className="pc-label">Commit-Hash</label><input className="pc-input" value={link.commit_hash||""} onChange={e=>setLink({...link,commit_hash:e.target.value})}/></div>
+            <div className="pc-field"><label className="pc-label">Pull-Request-Link</label><input className="pc-input" type="url" value={link.pr_url||""} onChange={e=>setLink({...link,pr_url:e.target.value})}/></div>
+          </div>
+          <GithubStates link={link}/>
+          {error&&<div className="pc-help" role="alert">{error}</div>}
+          <div className="pc-actions"><button className="btn btn-p" onClick={syncGithub} disabled={syncing}>{syncing?"Synchronisiere…":"GitHub-Status synchronisieren"}</button><span className="pc-help">Mergebereit bedeutet nur: Checks und Review sind grün. Der Merge bleibt manuell.</span></div>
+        </div>
+        <div className="pc-grid" style={{marginTop:14}}>
+          <div className="gl pc-card pc-span-6">
+            <h2>Checkliste</h2>
+            {checklist.filter(item=>item.task_id===draft.id).map(item=><div className="check-row" key={item.id}><input type="checkbox" checked={Boolean(item.done)} onChange={()=>saveResource("task_checklist_items",{...item,done:!item.done})}/><span className="check-label">{item.label}</span><button className="tdel" onClick={()=>deleteResource("task_checklist_items",item.id)}>✕</button></div>)}
+            {!checklist.some(item=>item.task_id===draft.id)&&<div className="tce">Noch keine Checklistenpunkte</div>}
+            <div className="pc-actions" style={{marginTop:10}}><input style={{flex:1}} placeholder="Checklistenpunkt" value={checkLabel} onChange={e=>setCheckLabel(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addChecklist()}/><button className="btn btn-g" onClick={addChecklist}>Hinzufügen</button></div>
+          </div>
+          <div className="gl pc-card pc-span-6">
+            <h2>Kommentare</h2>
+            {comments.filter(item=>item.task_id===draft.id).map(item=><div className="comment" key={item.id}><div className="comment-head"><span>{item.author}</span><span>{new Date(item.created_at||Date.now()).toLocaleString("de-DE")}</span></div><div className="comment-body">{item.body}</div></div>)}
+            {!comments.some(item=>item.task_id===draft.id)&&<div className="tce">Noch keine Kommentare</div>}
+            <textarea rows={3} placeholder="Kommentar oder Review-Hinweis…" value={comment} onChange={e=>setComment(e.target.value)} style={{marginTop:10}}/>
+            <button className="btn btn-g" onClick={addComment} style={{marginTop:8}}>Kommentar speichern</button>
+          </div>
+        </div>
+        <div className="pc-actions end">
+          <button className="btn" style={{background:"rgba(248,113,113,.12)",border:"1px solid rgba(248,113,113,.25)",color:"var(--err)"}} onClick={remove}>Task löschen</button>
+          <button className="btn btn-g" onClick={onClose}>Abbrechen</button>
+          <button className="btn btn-p" onClick={()=>saveTask(true)}>Task speichern</button>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function ProjectBoard({tasks,teamMembers,comments,checklist,githubLinks,mode,warning,saveResource,deleteResource,applyExternal}){
+  const [selected,setSelected]=useState(null);
+  const createTask=()=>setSelected({
+    id:makeId(),project_id:PROJECT_ID,title:"Neuer Task",text:"Neuer Task",description:"",
+    acceptance_criteria:[],definition_of_done:[],priority:"medium",module:"",effort:"M",
+    team_member_id:null,dependencies:[],status:"backlog",done:false,sort_order:tasks.length,
+  });
+  return(
+    <div className="page">
+      <div className="ph">
+        <div><h1 className="ptitle">Task <em>Board</em></h1><p className="psub">{tasks.filter(task=>task.status!=="done").length} offen · {tasks.filter(task=>task.status==="done").length} fertig</p></div>
+        <button className="btn btn-p" onClick={createTask}><Ic d={ic.plus} size={14}/> Task</button>
+      </div>
+      <ModeBanner mode={mode} warning={warning}/>
+      <div className="workflow">
+        {["Plan","Task","Branch","Commit","AI Review","Pull Request","Checks","manuelle Freigabe","Merge"].map((step,index)=><React.Fragment key={step}><span className="workflow-step">{step}</span>{index<8&&<span className="workflow-arrow">→</span>}</React.Fragment>)}
+      </div>
+      <div className="kanban">
+        {TASK_STATUSES.map(status=>{
+          const columnTasks=tasks.filter(task=>(task.status||(task.done?"done":"backlog"))===status.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+          return <section className="kcol" key={status.id} aria-label={status.label}>
+            <div className="khead"><span className="kname"><span className="kstatus" style={{background:status.color}}></span>{status.label}</span><span className="kcount">{columnTasks.length}</span></div>
+            <div className="kbody">
+              {columnTasks.map(task=>{
+                const member=memberFor(task,teamMembers);
+                const link=githubLinks.find(item=>item.task_id===task.id);
+                const doneCount=checklist.filter(item=>item.task_id===task.id&&item.done).length;
+                const allCount=checklist.filter(item=>item.task_id===task.id).length;
+                return <button className="task-card" key={task.id} onClick={()=>setSelected(task)}>
+                  <div className="task-card-title">{taskName(task)}</div>
+                  <div className="task-card-meta"><span className={`badge ${task.priority==="high"?"bd-rd":task.priority==="low"?"bd-gy":"bd-yw"}`}>{task.priority||"medium"}</span>{task.module&&<span className="mini-tag">{task.module}</span>}<span className="mini-tag">{task.effort||"M"}</span></div>
+                  <div className="task-card-foot"><span>{member?.name||"Nicht zugewiesen"}</span><span className="task-gh">{link?.pr_open?"PR offen":link?.branch_exists?"Branch":"Kein GitHub"} · {doneCount}/{allCount}</span></div>
+                </button>;
+              })}
+              {!columnTasks.length&&<div className="empty-col">{status.id==="backlog"?"Erstelle einen Task oder generiere Tasks aus dem Masterplan.":"Keine Tasks in diesem Status."}</div>}
+            </div>
+          </section>;
+        })}
+      </div>
+      {selected&&<TaskDrawer key={selected.id} task={selected} tasks={tasks} teamMembers={teamMembers} comments={comments} checklist={checklist} githubLinks={githubLinks} saveResource={saveResource} deleteResource={deleteResource} applyExternal={applyExternal} onClose={()=>setSelected(null)}/>}
+    </div>
+  );
+}
+
+function TeamPage({teamMembers,tasks,mode,warning,saveResource}){
+  const [drafts,setDrafts]=useState({});
+  const draftFor=member=>drafts[member.id]||member;
+  const update=(member,patch)=>setDrafts(current=>({...current,[member.id]:{...draftFor(member),...patch}}));
+  const save=async member=>{
+    const draft=draftFor(member);
+    await saveResource("team_members",{...draft,responsibilities:(draft.responsibilities||[]).map(item=>item.trim()).filter(Boolean)});
+    setDrafts(current=>{const next={...current};delete next[member.id];return next;});
+  };
+  return(
+    <div className="page">
+      <div className="ph"><div><h1 className="ptitle">Team<em>rollen</em></h1><p className="psub">Klare Verantwortung für kleine ausführbare Tasks</p></div></div>
+      <ModeBanner mode={mode} warning={warning}/>
+      <div className="pc-grid">
+        {teamMembers.map(member=>{
+          const draft=draftFor(member);
+          const assigned=tasks.filter(task=>(task.team_member_id||task.assignee_id)===member.id&&task.status!=="done").length;
+          return <div className="gl team-card pc-span-6" key={member.id}>
+            <div className="team-top"><div className="team-avatar">{member.name[0]}</div><div style={{flex:1}}><div className="team-name">{member.name}</div><div className="team-role">{member.role}</div></div><span className="badge bd-bl">{assigned} offen</span></div>
+            <div className="pc-field"><label className="pc-label">Rolle</label><input className="pc-input" value={draft.role||""} onChange={e=>update(member,{role:e.target.value})}/></div>
+            <div className="pc-field"><label className="pc-label">Verantwortungen · eine Zeile pro Eintrag</label><textarea rows={8} value={(draft.responsibilities||[]).join("\n")} onChange={e=>update(member,{responsibilities:e.target.value.split("\n")})}/></div>
+            <div className="pc-actions end"><button className="btn btn-g" onClick={()=>save(member)}>Rolle speichern</button></div>
+          </div>;
+        })}
+      </div>
+    </div>
+  );
+}
+
+const REVIEW_LABELS={
+  ready:"✅ Ready for PR",
+  changes_needed:"⚠️ Änderungen nötig",
+  reject:"❌ Nicht akzeptieren",
+};
+function ReviewAssistant({tasks,githubLinks,aiReviews,activityLog,mode,warning,applyExternal}){
+  const firstTask=tasks.find(task=>task.status==="review")||tasks.find(task=>task.status!=="done")||tasks[0];
+  const [taskId,setTaskId]=useState(firstTask?.id||"");
+  const task=tasks.find(item=>item.id===taskId);
+  const storedLink=githubLinks.find(item=>item.task_id===taskId);
+  const [repository,setRepository]=useState(storedLink?.repository||"olesorgenfrey/epikur");
+  const [commit,setCommit]=useState(storedLink?.commit_hash||"");
+  const [prUrl,setPrUrl]=useState(storedLink?.pr_url||"");
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState("");
+  const latest=[...aiReviews].filter(item=>item.task_id===taskId).sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0))[0];
+  useEffect(()=>{if(!taskId&&firstTask)setTaskId(firstTask.id);},[taskId,firstTask?.id]);
+  useEffect(()=>{
+    const next=githubLinks.find(item=>item.task_id===taskId);
+    setRepository(next?.repository||"olesorgenfrey/epikur");setCommit(next?.commit_hash||"");setPrUrl(next?.pr_url||"");setError("");
+  },[taskId,githubLinks]);
+  const runReview=async()=>{
+    if(!task)return;
+    if(!commit&&!prUrl){setError("Commit-Hash oder PR-Link ist erforderlich.");return;}
+    setBusy(true);setError("");
+    try{
+      const review=await pcApi.review(task.id,{repository,commit_hash:commit,pr_url:prUrl,task});
+      applyExternal("ai_reviews",review);
+      applyExternal("activity_log",{id:makeId(),project_id:PROJECT_ID,task_id:task.id,actor:window.__practioUser?.username||"Team",action:"ai.review_completed",source:"ai",details:{provider:review.provider,result:review.result},created_at:new Date().toISOString()});
+    }catch(err){
+      const review={id:makeId(),task_id:task.id,commit_hash:commit,pr_url:prUrl,result:"changes_needed",summary:"Review-Service nicht erreichbar. Fallback-Prüfung gespeichert.",findings:["Akzeptanzkriterien manuell gegen den Diff prüfen.",err.message],suggestions:["Server-Konfiguration prüfen und Review erneut starten."],next_task:"Review-Findings klären",provider:"fallback",created_at:new Date().toISOString()};
+      applyExternal("ai_reviews",review);setError(err.message);
+    }
+    setBusy(false);
+  };
+  return(
+    <div className="page">
+      <div className="ph"><div><h1 className="ptitle">AI <em>Review</em></h1><p className="psub">Diff gegen Akzeptanzkriterien, Qualität, Sicherheit und UX prüfen</p></div></div>
+      <ModeBanner mode={mode} warning={warning}/>
+      <div className="pc-grid">
+        <div className="gl pc-card pc-span-8">
+          <h2>Review starten</h2>
+          {tasks.length===0?<div className="tce">Noch keine Tasks. Generiere sie im Masterplan oder lege einen Task im Board an.</div>:<>
+            <div className="pc-field"><label className="pc-label">Task</label><select className="pc-input" value={taskId} onChange={e=>setTaskId(e.target.value)}>{tasks.map(item=><option key={item.id} value={item.id}>{taskName(item)}</option>)}</select></div>
+            <div className="form-grid">
+              <div className="pc-field"><label className="pc-label">Repository</label><input className="pc-input" value={repository} onChange={e=>setRepository(e.target.value)}/></div>
+              <div className="pc-field"><label className="pc-label">Commit-Hash</label><input className="pc-input" value={commit} onChange={e=>setCommit(e.target.value)}/></div>
+              <div className="pc-field form-full"><label className="pc-label">Pull-Request-Link</label><input className="pc-input" type="url" value={prUrl} onChange={e=>setPrUrl(e.target.value)}/></div>
+            </div>
+            {task&&<div className="pc-list" style={{marginBottom:14}}>{(task.acceptance_criteria||[]).map((criterion,index)=><div className="pc-list-row" key={index}><span className="pc-dot"></span><span style={{fontSize:12,color:"var(--t2)"}}>{criterion}</span></div>)}</div>}
+            {error&&<div className="dbb dbe" role="alert">{error}</div>}
+            <button className="btn btn-p" onClick={runReview} disabled={busy}>{busy?"Diff wird analysiert…":"AI Review starten"}</button>
+          </>}
+          {latest&&<div className={`review-result ${latest.result}`}>
+            <div className="review-heading">{REVIEW_LABELS[latest.result]||latest.result}</div>
+            <div className="review-copy">{latest.summary}</div>
+            {!!latest.findings?.length&&<><div className="pc-label" style={{marginTop:14}}>Findings</div>{latest.findings.map((finding,index)=><div className="pc-list-row" key={index}><span className="pc-dot" style={{background:"var(--warn)"}}></span><span className="review-copy">{finding}</span></div>)}</>}
+            {!!latest.suggestions?.length&&<><div className="pc-label" style={{marginTop:14}}>Verbesserungen</div>{latest.suggestions.map((suggestion,index)=><div className="pc-list-row" key={index}><span className="pc-dot"></span><span className="review-copy">{suggestion}</span></div>)}</>}
+            {latest.next_task&&<div style={{marginTop:14,padding:12,borderRadius:9,background:"rgba(110,168,255,.08)"}}><div className="pc-label">Nächster sinnvoller Task</div><div className="review-copy">{latest.next_task}</div></div>}
+            <div className="pc-help">Provider: {latest.provider||"unbekannt"} · Merge bleibt manuell.</div>
+          </div>}
+        </div>
+        <div className="gl pc-card pc-span-4">
+          <h2>Aktivitätsprotokoll</h2>
+          {activityLog.slice(0,14).map(entry=><div className="activity-row" key={entry.id}><div className="activity-action">{entry.action}</div><div className="activity-meta">{entry.actor} · {entry.source} · {new Date(entry.created_at).toLocaleString("de-DE")}</div></div>)}
+          {!activityLog.length&&<div className="tce">GitHub- und AI-Aktionen erscheinen hier.</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Milestones({milestones,setMilestones,db,saveResource,deleteResource}){
   const [adding,setAdding]=useState(false);
   const [draft,setDraft]=useState({label:"",target_date:"",progress:0,color:"#6EA8FF"});
   const add=async()=>{
@@ -654,19 +1193,15 @@ function Milestones({milestones,setMilestones,db}){
       progress,
       color:draft.color,
       sort_order:milestones.reduce((max,m)=>Math.max(max,Number(m.sort_order)||0),0)+1,
+      project_id:PROJECT_ID,
     };
-    try{
-      if(db==="ok"){
-        const[r]=await sb.post("milestones",row);
-        setMilestones(ms=>[...ms,r]);
-      }else setMilestones(ms=>[...ms,{...row,id:Date.now().toString()}]);
-    }catch{setMilestones(ms=>[...ms,{...row,id:Date.now().toString()}]);}
+    await saveResource("milestones",{...row,id:makeId()});
     setDraft({label:"",target_date:"",progress:0,color:"#6EA8FF"});
     setAdding(false);
   };
   const update=async(id,patch)=>{
-    setMilestones(ms=>ms.map(m=>m.id===id?{...m,...patch}:m));
-    if(db==="ok")try{await sb.patch("milestones",id,patch);}catch{}
+    const milestone=milestones.find(item=>item.id===id);
+    if(milestone)await saveResource("milestones",{...milestone,...patch});
   };
   const setProgress=(id,value)=>{
     const progress=Math.max(0,Math.min(100,Number(value)||0));
@@ -675,8 +1210,7 @@ function Milestones({milestones,setMilestones,db}){
   const toggle=milestone=>update(milestone.id,{done:!milestone.done,progress:!milestone.done?100:Math.min(milestone.progress,99)});
   const del=async milestone=>{
     if(!confirm(`"${milestone.label}" wirklich löschen?`))return;
-    setMilestones(ms=>ms.filter(m=>m.id!==milestone.id));
-    if(db==="ok")try{await sb.del("milestones",milestone.id);}catch{}
+    await deleteResource("milestones",milestone.id);
   };
   return(
     <div className="page">
@@ -696,15 +1230,15 @@ function Milestones({milestones,setMilestones,db}){
                 {m.done&&<span className="badge bd-gn">Done</span>}
                 <span className="msdt">{m.target_date||"laufend"}</span>
                 <div className="msactions">
-                  <input className="msprogress" type="number" min="0" max="100" value={m.progress} onChange={e=>setProgress(m.id,e.target.value)} title="Fortschritt in Prozent"/>
+                  <input className="msprogress" type="number" min="0" max="100" value={m.progress??0} onChange={e=>setProgress(m.id,e.target.value)} title="Fortschritt in Prozent"/>
                   <button className={`tck ${m.done?"done":""}`} onClick={()=>toggle(m)} title={m.done?"Wieder öffnen":"Als erledigt markieren"}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="#06070A" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d={ic.check}/></svg>
                   </button>
                   <button className="tdel" onClick={()=>del(m)} title="Meilenstein löschen">✕</button>
                 </div>
               </div>
-              <div className="pt"><div className="pf" style={{width:`${m.progress}%`,background:m.color}}></div></div>
-              <div style={{fontSize:10,color:"var(--t3)",fontFamily:"'IBM Plex Mono',monospace",marginTop:5}}>{m.progress}%</div>
+              <div className="pt"><div className="pf" style={{width:`${m.progress??0}%`,background:m.color}}></div></div>
+              <div style={{fontSize:10,color:"var(--t3)",fontFamily:"'IBM Plex Mono',monospace",marginTop:5}}>{m.progress??0}%</div>
             </div>
           ))}
           {adding&&(
@@ -770,7 +1304,7 @@ function Terminal(){
   useEffect(()=>{
     let c=false;
     (async()=>{
-      try{await fetch(TTYD_URL,{mode:"no-cors",signal:AbortSignal.timeout(6000)});if(!c)setOnline(true);}
+      try{const r=await fetch(TTYD_URL,{cache:"no-store",signal:AbortSignal.timeout(6000)});if(!c)setOnline(r.ok);}
       catch{if(!c)setOnline(false);}
     })();
     return()=>{c=true;};
@@ -821,7 +1355,7 @@ function AdminPanel({onClose}){
   const [pending,setPending]=useState([]);
   const [busy,setBusy]=useState({});
   useEffect(()=>{
-    fetch('/api/admin/users/pending').then(r=>r.json()).then(setPending).catch(()=>{});
+    fetch('/api/admin/users/pending').then(r=>r.json()).then(d=>setPending(Array.isArray(d)?d:[])).catch(()=>{});
   },[]);
   const approve=async(id,username)=>{
     setBusy(b=>({...b,[id]:'approve'}));
@@ -883,15 +1417,15 @@ function currentTaskIdentity(persons){
 
 function formatTaskList(tasks,persons){
   return tasks.map(t=>{
-    const p=persons.find(x=>x.id===t.assignee_id);
-    return`• ${p?p.name:'?'}: "${t.text}" (id:"${t.id}")`;
+    const p=persons.find(x=>x.id===(t.team_member_id||t.assignee_id));
+    return`• ${p?p.name:'?'}: "${taskName(t)}" (id:"${t.id}")`;
   }).join('\n');
 }
 
 function buildTaskCtx(tasks,persons){
   const{username,person}=currentTaskIdentity(persons);
-  const ownTasks=person?tasks.filter(t=>t.assignee_id===person.id):[];
-  const otherTasks=person?tasks.filter(t=>t.assignee_id!==person.id):tasks;
+  const ownTasks=person?tasks.filter(t=>(t.team_member_id||t.assignee_id)===person.id):[];
+  const otherTasks=person?tasks.filter(t=>(t.team_member_id||t.assignee_id)!==person.id):tasks;
   let s='[Practio Kontext]\n';
   s+=`Aktueller Nutzer: ${username||'unbekannt'}${person?` (Person-ID:"${person.id}")`:''}\n`;
   s+='Regel: Konzentriere dich bei allgemeinen Fragen und Empfehlungen vorrangig auf die Tasks des aktuellen Nutzers. ';
@@ -899,8 +1433,8 @@ function buildTaskCtx(tasks,persons){
   if(person)s+=`Neue Tasks ohne ausdrücklich genannte andere Zuweisung standardmäßig ${person.name} (id:"${person.id}") zuweisen.\n`;
   s+='GitHub: olesorgenfrey · Repos: '+Object.values(GITHUB_REPOS).join(', ')+'\n';
   if(persons.length)s+='Personen: '+persons.map(p=>`${p.name} (id:"${p.id}")`).join(', ')+'\n';
-  const ownOpen=ownTasks.filter(t=>!t.done);
-  const otherOpen=otherTasks.filter(t=>!t.done);
+  const ownOpen=ownTasks.filter(t=>t.status!=="done"&&!t.done);
+  const otherOpen=otherTasks.filter(t=>t.status!=="done"&&!t.done);
   if(ownOpen.length)s+='Eigene offene Tasks (Priorität):\n'+formatTaskList(ownOpen,persons)+'\n';
   if(otherOpen.length)s+='Weitere offene Tasks:\n'+formatTaskList(otherOpen,persons)+'\n';
   const ownDone=ownTasks.filter(t=>t.done).length;
@@ -917,23 +1451,29 @@ function execTaskActions(responseText,tasks,persons,setTasks){
   if(!acts.length)return{clean,summary:''};
   let next=[...tasks];
   const results=[];
+  const persisted=[];
+  const deleted=[];
   for(const a of acts){
     if(a.action==='create_task'){
       const p=persons.find(x=>x.id===a.assignee_id);
-      next=[...next,{id:Date.now().toString()+(Math.random()*1000|0),text:a.text,meta:'',assignee_id:a.assignee_id,done:false,priority:'medium'}];
+      const row={id:makeId(),project_id:PROJECT_ID,title:a.text,text:a.text,description:"",acceptance_criteria:[],definition_of_done:[],meta:"",team_member_id:a.assignee_id,done:false,status:"backlog",priority:"medium",dependencies:[],effort:"M"};
+      next=[...next,row];persisted.push(row);
       results.push(`Task erstellt: "${a.text}"${p?` → ${p.name}`:''}`);}
     else if(a.action==='toggle_task'){
       const t=next.find(x=>x.id===a.id);
       if(!t){results.push(`Task ${a.id} nicht gefunden`);continue;}
-      next=next.map(x=>x.id===a.id?{...x,done:a.done}:x);
+      const updated={...t,done:a.done,status:a.done?'done':(t.status==='done'?'backlog':t.status||'backlog')};
+      next=next.map(x=>x.id===a.id?updated:x);persisted.push(updated);
       results.push(`"${t?.text||a.id}" ${a.done?'abgehakt':'geöffnet'}`);}
     else if(a.action==='delete_task'){
       const t=next.find(x=>x.id===a.id);
       if(!t){results.push(`Task ${a.id} nicht gefunden`);continue;}
-      next=next.filter(x=>x.id!==a.id);
+      next=next.filter(x=>x.id!==a.id);deleted.push(a.id);
       results.push(`"${t?.text||a.id}" gelöscht`);}
   }
   setTasks(next);
+  persisted.forEach(row=>pcApi.save("tasks",row).catch(()=>{}));
+  deleted.forEach(id=>pcApi.del("tasks",id).catch(()=>{}));
   try{const d=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');d.tasks=next;localStorage.setItem(STORAGE_KEY,JSON.stringify(d));}catch{}
   return{clean,summary:results.length?'\n\n✓ '+results.join(' · '):''};
 }
@@ -1057,6 +1597,7 @@ function AiChat({tasks,setTasks,persons}){
         setMsgs(ms=>[...ms,{role:'assistant',content:d.error||`${provider==='codex'?'Codex':'Claude'} konnte die Anfrage nicht ausführen.`,loginUrl:d.loginUrl||null,loginProvider:d.loginProvider||null}]);
         setLoading(false);
         if(r.status===401)setProviderStatus({loggedIn:false});
+        if(r.status===404){sessionStorage.removeItem(`aiDashChatId:${provider}`);setChatId(null);}
         return;
       }
       const raw=d.response||d.error||'Keine Antwort.';
@@ -1147,6 +1688,8 @@ function App(){
   const initial=useRef(loadLocal()).current;
   const [page,setPage]=useState("overview");
   const [db,setDb]=useState("loading");
+  const [projectMode,setProjectMode]=useState(initial.projectMode||"local");
+  const [projectWarning,setProjectWarning]=useState("");
   const [persons,setPersons]=useState(initial.persons);
   const [pendingCount,setPendingCount]=useState(0);
   const [showAdmin,setShowAdmin]=useState(false);
@@ -1162,7 +1705,7 @@ function App(){
 
   useEffect(()=>{
     if(!isAdmin)return;
-    const check=()=>fetch('/api/admin/users/pending').then(r=>r.json()).then(d=>setPendingCount(d.length)).catch(()=>{});
+    const check=()=>fetch('/api/admin/users/pending').then(r=>r.json()).then(d=>setPendingCount(Array.isArray(d)?d.length:0)).catch(()=>{});
     check();
     const t=setInterval(check,30_000);
     return()=>clearInterval(t);
@@ -1172,6 +1715,13 @@ function App(){
   const [milestones,setMilestones]=useState(initial.milestones);
   const [costs,setCosts]=useState(initial.costs);
   const [scenarios,setScenarios]=useState(initial.scenarios);
+  const [masterplans,setMasterplans]=useState(initial.masterplans);
+  const [teamMembers,setTeamMembers]=useState(initial.teamMembers);
+  const [taskComments,setTaskComments]=useState(initial.taskComments);
+  const [checklistItems,setChecklistItems]=useState(initial.checklistItems);
+  const [githubLinks,setGithubLinks]=useState(initial.githubLinks);
+  const [aiReviews,setAiReviews]=useState(initial.aiReviews);
+  const [activityLog,setActivityLog]=useState(initial.activityLog);
   const [savedAt,setSavedAt]=useState(initial.savedAt||null);
   const [loaded,setLoaded]=useState(false);
 
@@ -1194,9 +1744,102 @@ function App(){
         if(sc.length)setScenarios(sc);
         setDb("ok");
       }catch{setDb("error");}
+      try{
+        const workspace=await pcApi.workspace();
+        const normalize=task=>({
+          ...task,title:task.title||task.text,text:task.title||task.text,
+          status:task.status||(task.done?"done":"backlog"),
+          acceptance_criteria:Array.isArray(task.acceptance_criteria)?task.acceptance_criteria:[],
+          definition_of_done:Array.isArray(task.definition_of_done)?task.definition_of_done:[],
+          dependencies:Array.isArray(task.dependencies)?task.dependencies:[],
+        });
+        setMasterplans(workspace.masterplans?.length?workspace.masterplans:[{...DEFAULT_MASTERPLAN}]);
+        setTeamMembers(workspace.team_members?.length?workspace.team_members:DEFAULT_TEAM);
+        if(workspace.tasks?.length)setTasks(workspace.tasks.map(normalize));
+        if(workspace.milestones?.length)setMilestones(workspace.milestones);
+        setTaskComments(workspace.task_comments||[]);
+        setChecklistItems(workspace.task_checklist_items||[]);
+        setGithubLinks(workspace.github_links||[]);
+        setAiReviews(workspace.ai_reviews||[]);
+        setActivityLog(workspace.activity_log||[]);
+        setProjectMode(workspace.mode||"fallback");
+        setProjectWarning(workspace.warning||"");
+      }catch(error){
+        setProjectMode("local");
+        setProjectWarning("Projekt-API nicht erreichbar; Browser-Autosave aktiv.");
+      }
       finally{setLoaded(true);}
     })();
   },[]);
+
+  const applyExternal=(table,row)=>{
+    const upsert=setter=>setter(items=>{
+      const index=items.findIndex(item=>item.id===row.id);
+      return index>=0?items.map(item=>item.id===row.id?{...item,...row}:item):[...items,row];
+    });
+    if(table==="masterplans")upsert(setMasterplans);
+    else if(table==="milestones")upsert(setMilestones);
+    else if(table==="tasks")upsert(setTasks);
+    else if(table==="team_members")upsert(setTeamMembers);
+    else if(table==="task_comments")upsert(setTaskComments);
+    else if(table==="task_checklist_items")upsert(setChecklistItems);
+    else if(table==="github_links")upsert(setGithubLinks);
+    else if(table==="ai_reviews")upsert(setAiReviews);
+    else if(table==="activity_log")setActivityLog(items=>[row,...items.filter(item=>item.id!==row.id)]);
+  };
+
+  const saveResource=async(table,value)=>{
+    const row={
+      ...value,
+      id:value.id||makeId(),
+      created_at:value.created_at||new Date().toISOString(),
+      updated_at:new Date().toISOString(),
+    };
+    if(table==="tasks"){
+      row.title=row.title||row.text;
+      row.text=row.title;
+      row.done=row.status==="done";
+    }
+    applyExternal(table,row);
+    const localActivity={
+      id:makeId(),project_id:row.project_id||PROJECT_ID,task_id:row.task_id||(table==="tasks"?row.id:null),
+      actor:window.__practioUser?.username||"lokal",action:`${table}.saved`,source:projectMode==="local"?"local":"dashboard",
+      details:{resourceId:row.id},created_at:new Date().toISOString(),
+    };
+    setActivityLog(items=>[localActivity,...items].slice(0,100));
+    try{
+      const saved=await pcApi.save(table,row);
+      applyExternal(table,saved);
+      return saved;
+    }catch{
+      setProjectMode("local");
+      setProjectWarning("Server-Speicherung fehlgeschlagen; Änderung bleibt im Browser gespeichert.");
+      return row;
+    }
+  };
+
+  const deleteResource=async(table,id)=>{
+    const remove=setter=>setter(items=>items.filter(item=>item.id!==id));
+    if(table==="masterplans")remove(setMasterplans);
+    else if(table==="milestones")remove(setMilestones);
+    else if(table==="tasks"){
+      remove(setTasks);
+      setTaskComments(items=>items.filter(item=>item.task_id!==id));
+      setChecklistItems(items=>items.filter(item=>item.task_id!==id));
+      setGithubLinks(items=>items.filter(item=>item.task_id!==id));
+      setAiReviews(items=>items.filter(item=>item.task_id!==id));
+    }
+    else if(table==="team_members")remove(setTeamMembers);
+    else if(table==="task_comments")remove(setTaskComments);
+    else if(table==="task_checklist_items")remove(setChecklistItems);
+    else if(table==="github_links")remove(setGithubLinks);
+    else if(table==="ai_reviews")remove(setAiReviews);
+    try{await pcApi.del(table,id);}
+    catch{
+      setProjectMode("local");
+      setProjectWarning("Server-Löschung fehlgeschlagen; lokal wurde der Eintrag entfernt.");
+    }
+  };
 
   useEffect(()=>{
     if(!loaded)return;
@@ -1204,12 +1847,13 @@ function App(){
       const savedAt=new Date().toISOString();
       const current=loadLocal();
       localStorage.setItem(STORAGE_KEY,JSON.stringify({
-        ...current,persons,leads,tasks,milestones,costs,scenarios,savedAt
+        ...current,persons,leads,tasks,milestones,costs,scenarios,masterplans,teamMembers,
+        taskComments,checklistItems,githubLinks,aiReviews,activityLog,projectMode,savedAt
       }));
       setSavedAt(savedAt);
     },250);
     return()=>clearTimeout(timer);
-  },[loaded,persons,leads,tasks,milestones,costs,scenarios]);
+  },[loaded,persons,leads,tasks,milestones,costs,scenarios,masterplans,teamMembers,taskComments,checklistItems,githubLinks,aiReviews,activityLog,projectMode]);
 
   const open=tasks.filter(t=>!t.done).length;
 
@@ -1247,13 +1891,16 @@ function App(){
           )}
           <div className="sbfoot">„Schweigepflicht beginnt bei der Software"</div>
         </nav>
-        {showAdmin&&<AdminPanel onClose={()=>{setShowAdmin(false);fetch('/api/admin/users/pending').then(r=>r.json()).then(d=>setPendingCount(d.length)).catch(()=>{});}}/>}
-        <AiChat tasks={tasks} setTasks={setTasks} persons={persons}/>
+        {showAdmin&&<AdminPanel onClose={()=>{setShowAdmin(false);fetch('/api/admin/users/pending').then(r=>r.json()).then(d=>setPendingCount(Array.isArray(d)?d.length:0)).catch(()=>{});}}/>}
+        <AiChat tasks={tasks} setTasks={setTasks} persons={teamMembers}/>
         <main role="main" style={{flex:1,minWidth:0,paddingBottom:40}}>
-          {page==="overview"   &&<Overview    leads={leads} tasks={tasks} persons={persons} db={db}/>}
+          {page==="overview"   &&<Overview    leads={leads} tasks={tasks} persons={persons} teamMembers={teamMembers} db={db}/>}
+          {page==="masterplan" &&<MasterplanPage masterplans={masterplans} milestones={milestones} tasks={tasks} teamMembers={teamMembers} mode={projectMode} warning={projectWarning} saveResource={saveResource} onOpenBoard={()=>setPage("tasks")}/>}
           {page==="leads"      &&<Leads       leads={leads} setLeads={setLeads} db={db}/>}
-          {page==="tasks"      &&<Tasks       tasks={tasks} setTasks={setTasks} persons={persons} setPersons={setPersons} db={db}/>}
-          {page==="milestones" &&<Milestones  milestones={milestones} setMilestones={setMilestones} db={db}/>}
+          {page==="tasks"      &&<ProjectBoard tasks={tasks} teamMembers={teamMembers} comments={taskComments} checklist={checklistItems} githubLinks={githubLinks} mode={projectMode} warning={projectWarning} saveResource={saveResource} deleteResource={deleteResource} applyExternal={applyExternal}/>}
+          {page==="team"       &&<TeamPage teamMembers={teamMembers} tasks={tasks} mode={projectMode} warning={projectWarning} saveResource={saveResource}/>}
+          {page==="review"     &&<ReviewAssistant tasks={tasks} githubLinks={githubLinks} aiReviews={aiReviews} activityLog={activityLog} mode={projectMode} warning={projectWarning} applyExternal={applyExternal}/>}
+          {page==="milestones" &&<Milestones  milestones={milestones} setMilestones={setMilestones} db={db} saveResource={saveResource} deleteResource={deleteResource}/>}
           {page==="finance"    &&<Finance     costs={costs} scenarios={scenarios} db={db}/>}
           {page==="code"       &&<Terminal/>}
         </main>
