@@ -328,9 +328,28 @@ const TTYD_URL="/terminal-login";
 const H={apikey:SB_ANON,Authorization:`Bearer ${SB_ANON}`,"Content-Type":"application/json",Prefer:"return=representation"};
 const STORAGE_KEY="practio-dashboard-v1";
 const EMPTY_DATA={persons:[],leads:[],tasks:[],milestones:[],costs:[],scenarios:[],drafts:{}};
+const MILESTONE_SEED_VERSION=1;
+const DEFAULT_MILESTONES=[
+  {id:"00000000-0000-4000-8000-000000000001",label:"Admin- und Nutzerrollen getrennt",target_date:"2026-06-30",done:false,progress:40,color:"#6EA8FF",sort_order:1},
+  {id:"00000000-0000-4000-8000-000000000002",label:"Task-Manager mit Status, Priorität und Labels",target_date:"2026-07-15",done:false,progress:25,color:"#C084FC",sort_order:2},
+  {id:"00000000-0000-4000-8000-000000000003",label:"Task-Kommentare, Reviews und Verknüpfungen",target_date:"2026-07-31",done:false,progress:10,color:"#FBBF24",sort_order:3},
+  {id:"00000000-0000-4000-8000-000000000004",label:"Praxis-App UI und Formatierung überarbeitet",target_date:"2026-08-15",done:false,progress:0,color:"#4ADE80",sort_order:4},
+  {id:"00000000-0000-4000-8000-000000000005",label:"Kalender-Anträge funktionsfähig",target_date:"2026-08-31",done:false,progress:0,color:"#F97316",sort_order:5},
+  {id:"00000000-0000-4000-8000-000000000006",label:"Kalender erzeugt Rechnungspositionen automatisch",target_date:"2026-09-15",done:false,progress:0,color:"#F472B6",sort_order:6},
+];
 const loadLocal=()=>{
-  try{return {...EMPTY_DATA,...JSON.parse(localStorage.getItem(STORAGE_KEY)||"{}")};}
-  catch{return EMPTY_DATA;}
+  try{
+    const stored=JSON.parse(localStorage.getItem(STORAGE_KEY)||"{}");
+    const data={...EMPTY_DATA,...stored};
+    if((stored.milestoneSeedVersion||0)<MILESTONE_SEED_VERSION){
+      if(!Array.isArray(stored.milestones)||stored.milestones.length===0){
+        data.milestones=DEFAULT_MILESTONES.map(m=>({...m}));
+      }
+      data.milestoneSeedVersion=MILESTONE_SEED_VERSION;
+    }
+    return data;
+  }
+  catch{return {...EMPTY_DATA,milestones:DEFAULT_MILESTONES.map(m=>({...m})),milestoneSeedVersion:MILESTONE_SEED_VERSION};}
 };
 const sb={
   get:async(t,q="")=>{const r=await fetch(`${SB_URL}/rest/v1/${t}?${q}`,{headers:H});if(!r.ok)throw new Error(await r.text());return r.json();},
