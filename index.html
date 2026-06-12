@@ -328,23 +328,34 @@ const TTYD_URL="/terminal-login";
 const H={apikey:SB_ANON,Authorization:`Bearer ${SB_ANON}`,"Content-Type":"application/json",Prefer:"return=representation"};
 const STORAGE_KEY="practio-dashboard-v1";
 const EMPTY_DATA={persons:[],leads:[],tasks:[],milestones:[],costs:[],scenarios:[],drafts:{}};
-const MILESTONE_SEED_VERSION=1;
+const MILESTONE_SEED_VERSION=2;
+const LEGACY_MILESTONE_IDS=new Set([
+  "00000000-0000-4000-8000-000000000001",
+  "00000000-0000-4000-8000-000000000002",
+  "00000000-0000-4000-8000-000000000003",
+  "00000000-0000-4000-8000-000000000004",
+  "00000000-0000-4000-8000-000000000005",
+  "00000000-0000-4000-8000-000000000006",
+]);
 const DEFAULT_MILESTONES=[
-  {id:"00000000-0000-4000-8000-000000000001",label:"Admin- und Nutzerrollen getrennt",target_date:"2026-06-30",done:false,progress:40,color:"#6EA8FF",sort_order:1},
-  {id:"00000000-0000-4000-8000-000000000002",label:"Task-Manager mit Status, Priorität und Labels",target_date:"2026-07-15",done:false,progress:25,color:"#C084FC",sort_order:2},
-  {id:"00000000-0000-4000-8000-000000000003",label:"Task-Kommentare, Reviews und Verknüpfungen",target_date:"2026-07-31",done:false,progress:10,color:"#FBBF24",sort_order:3},
-  {id:"00000000-0000-4000-8000-000000000004",label:"Praxis-App UI und Formatierung überarbeitet",target_date:"2026-08-15",done:false,progress:0,color:"#4ADE80",sort_order:4},
-  {id:"00000000-0000-4000-8000-000000000005",label:"Kalender-Anträge funktionsfähig",target_date:"2026-08-31",done:false,progress:0,color:"#F97316",sort_order:5},
-  {id:"00000000-0000-4000-8000-000000000006",label:"Kalender erzeugt Rechnungspositionen automatisch",target_date:"2026-09-15",done:false,progress:0,color:"#F472B6",sort_order:6},
+  {id:"00000000-0000-4000-9000-000000000001",label:"Produkt fertig und produktionsbereit",target_date:"2026-07-31",done:false,progress:60,color:"#6EA8FF",sort_order:1},
+  {id:"00000000-0000-4000-9000-000000000002",label:"Erster zahlender Kunde",target_date:"2026-08-31",done:false,progress:0,color:"#4ADE80",sort_order:2},
+  {id:"00000000-0000-4000-9000-000000000003",label:"10 zahlende Kunden",target_date:"2026-10-31",done:false,progress:0,color:"#C084FC",sort_order:3},
+  {id:"00000000-0000-4000-9000-000000000004",label:"1.000 € MRR",target_date:"2026-11-30",done:false,progress:0,color:"#FBBF24",sort_order:4},
+  {id:"00000000-0000-4000-9000-000000000005",label:"Break-even erreicht",target_date:"2027-01-31",done:false,progress:0,color:"#F97316",sort_order:5},
+  {id:"00000000-0000-4000-9000-000000000006",label:"5.000 € MRR",target_date:"2027-06-30",done:false,progress:0,color:"#F472B6",sort_order:6},
 ];
 const loadLocal=()=>{
   try{
     const stored=JSON.parse(localStorage.getItem(STORAGE_KEY)||"{}");
     const data={...EMPTY_DATA,...stored};
     if((stored.milestoneSeedVersion||0)<MILESTONE_SEED_VERSION){
-      if(!Array.isArray(stored.milestones)||stored.milestones.length===0){
-        data.milestones=DEFAULT_MILESTONES.map(m=>({...m}));
-      }
+      const customMilestones=(Array.isArray(stored.milestones)?stored.milestones:[])
+        .filter(m=>!LEGACY_MILESTONE_IDS.has(m.id));
+      data.milestones=[
+        ...DEFAULT_MILESTONES.map(m=>({...m})),
+        ...customMilestones.map((m,index)=>({...m,sort_order:DEFAULT_MILESTONES.length+index+1})),
+      ];
       data.milestoneSeedVersion=MILESTONE_SEED_VERSION;
     }
     return data;
