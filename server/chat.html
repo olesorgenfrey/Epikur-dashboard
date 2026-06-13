@@ -789,6 +789,7 @@
   let projects = [];
   let activeChat = null;
   let activatedProject = null;
+  let previewProject = null;
   let currentUser = null;
   let busy = false;
   let settings = { secureTty: true, autoTestAccount: true, testAccountConfigured: false };
@@ -1139,11 +1140,15 @@
     els.project.disabled = true;
     els.previewLabel.textContent = `${selected.label} wird vorbereitet …`;
     try {
-      await api(`/api/claude/projects/${id}/activate`, { method: 'POST' });
-      activatedProject = id;
+      const activation = api(`/api/claude/projects/${id}/activate`, { method: 'POST' });
       if (!selected.hasPreview) {
-        els.preview.removeAttribute('src');
-        els.preview.srcdoc = `<!doctype html><html lang="de"><style>html,body{height:100%;margin:0}body{display:grid;place-items:center;background:#111;color:#777;font:14px system-ui;text-align:center}.box{max-width:440px;padding:30px}h2{color:#ddd;font-size:18px}</style><body><div class="box"><h2>${selected.label}</h2><p>Dieses Repository hat keine Web-Preview. Der Agent kann es trotzdem vollständig bearbeiten.</p></div></body></html>`;
+        if (previewProject !== selected.id) {
+          els.preview.removeAttribute('src');
+          els.preview.srcdoc = `<!doctype html><html lang="de"><style>html,body{height:100%;margin:0}body{display:grid;place-items:center;background:#111;color:#777;font:14px system-ui;text-align:center}.box{max-width:440px;padding:30px}h2{color:#ddd;font-size:18px}</style><body><div class="box"><h2>${selected.label}</h2><p>Dieses Repository hat keine Web-Preview. Der Agent kann es trotzdem vollständig bearbeiten.</p></div></body></html>`;
+          previewProject = selected.id;
+        }
+        await activation;
+        activatedProject = id;
         els.openPreview.hidden = true;
         $('reloadPreview').hidden = true;
         els.previewLabel.textContent = `${selected.label} · Repository`;
@@ -1151,14 +1156,23 @@
       }
       if (selected.id === 'epikur') await loginPreviewTestAccount();
       const separator = selected.previewUrl.includes('?') ? '&' : '?';
+      const previewUrl = `${selected.previewUrl}${separator}dashboardPreview=1&testAccount=1`;
       els.preview.removeAttribute('srcdoc');
-      els.preview.src = `${selected.previewUrl}${separator}dashboardPreview=${Date.now()}&testAccount=1`;
+      if (previewProject !== selected.id || els.preview.getAttribute('src') !== previewUrl) {
+        els.preview.src = previewUrl;
+        previewProject = selected.id;
+      }
       els.openPreview.href = selected.previewUrl;
       els.openPreview.hidden = false;
       $('reloadPreview').hidden = false;
+      const result = await activation;
+      activatedProject = id;
+      if (result.coldStart && previewProject === selected.id) {
+        els.preview.src = previewUrl;
+      }
       els.previewLabel.textContent = selected.id === 'epikur'
-        ? `${selected.label} · Testaccount aktiv`
-        : `${selected.label} · Preview bereit`;
+        ? `${selected.label} · HMR aktiv · Testaccount`
+        : `${selected.label} · HMR aktiv`;
     } catch (error) {
       els.previewLabel.textContent = error.message;
     } finally {

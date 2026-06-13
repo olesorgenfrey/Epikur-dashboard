@@ -284,9 +284,41 @@ async function waitForPreview(url, timeout = 90_000) {
   throw new Error('Preview wurde nicht rechtzeitig bereit.');
 }
 
-let projectActivationQueue = Promise.resolve();
 let publishQueue = Promise.resolve();
 let deployQueue = Promise.resolve();
+const previewActivationPromises = new Map();
+
+function activatePreviewProject(project) {
+  const existing = previewActivationPromises.get(project.id);
+  if (existing) return existing;
+
+  const activation = (async () => {
+    if (!project.service || !project.healthUrl) return { coldStart: false };
+    if (await checkHttp(project.healthUrl)) return { coldStart: false };
+    await runShell(`sudo systemctl start ${project.service}`);
+    await waitForPreview(project.healthUrl, 45_000);
+    return { coldStart: true };
+  })().finally(() => {
+    if (previewActivationPromises.get(project.id) === activation) {
+      previewActivationPromises.delete(project.id);
+    }
+  });
+
+  previewActivationPromises.set(project.id, activation);
+  return activation;
+}
+
+function warmPreviewProjects() {
+  const previewProjects = Object.values(PROJECTS).filter((project) => project.service && project.healthUrl);
+  Promise.allSettled(previewProjects.map((project) => activatePreviewProject(project)))
+    .then((results) => {
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          console.error(`Preview warmup ${previewProjects[index].id} failed:`, result.reason?.message || result.reason);
+        }
+      });
+    });
+}
 
 function getUsageSummary(result) {
   const modelUsage = Object.values(result.modelUsage || {});
@@ -1340,13 +1372,11 @@ app.post('/api/claude/projects/:id/activate', requireApiAuth, (req, res) => {
   const project = PROJECTS[req.params.id];
   if (!project) return res.status(404).json({ error: 'Projekt nicht gefunden.' });
   const activate = async () => {
-    if (project.service) {
-      await runShell(`sudo systemctl start ${project.service}`);
-      await waitForPreview(project.healthUrl, 45_000);
-    }
+    const preview = await activatePreviewProject(project);
     return {
       ok: true,
       ready: true,
+      ...preview,
       project: {
         id: project.id,
         label: project.label,
@@ -1356,9 +1386,7 @@ app.post('/api/claude/projects/:id/activate', requireApiAuth, (req, res) => {
     };
   };
 
-  const activation = projectActivationQueue.catch(() => {}).then(activate);
-  projectActivationQueue = activation;
-  activation
+  activate()
     .then((result) => res.json(result))
     .catch((error) => {
       console.error('Preview activation failed:', error.stderr || error.message);
@@ -2266,4 +2294,5 @@ wss.on('connection', (ws) => {
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log('WebSSH laeuft auf https://212.227.167.218:' + PORT);
+  setTimeout(warmPreviewProjects, 1_000);
 });
