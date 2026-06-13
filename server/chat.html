@@ -3,596 +3,1279 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Claude Code Workspace</title>
+<title>Practio Code</title>
 <style>
-  :root { color-scheme: dark; --bg:#0d1117; --panel:#161b22; --line:#30363d; --muted:#7d8590; --text:#e6edf3; --blue:#58a6ff; }
+  :root {
+    color-scheme: dark;
+    --bg: #0d0d0d;
+    --sidebar: #161616;
+    --panel: #1c1c1c;
+    --panel-2: #222;
+    --hover: #292929;
+    --line: #303030;
+    --line-soft: #252525;
+    --text: #f2f2f2;
+    --muted: #999;
+    --faint: #666;
+    --green: #55c57a;
+    --amber: #d8a657;
+    --red: #ee6a6a;
+    --blue: #73a7ff;
+    --radius: 10px;
+  }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
-  body { background: var(--bg); color: var(--text); font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; overflow: hidden; }
-  button, select, textarea { font: inherit; }
-  .workspace { height: 100%; display: grid; grid-template-columns: minmax(330px, 20%) minmax(0, 80%); }
-  .chat-pane { min-width: 0; display: grid; grid-template-columns: 155px minmax(0, 1fr); border-right: 1px solid var(--line); }
-  .history { min-width: 0; display: flex; flex-direction: column; height: 100%; overflow: hidden; background: #10151d; border-right: 1px solid var(--line); }
-  .chat-pane.history-collapsed { grid-template-columns: 38px minmax(0, 1fr); }
-  .chat-pane.history-collapsed .history-head > :not(.history-toggle), .chat-pane.history-collapsed .chat-list { display: none; }
-  .chat-pane.history-collapsed .history { align-items: center; }
-  .history-head { padding: 8px; border-bottom: 1px solid var(--line); }
-  .history-toggle { width: 100%; margin-bottom: 7px; padding: 6px; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; }
-  .new-chat { width: 100%; padding: 9px; border: 1px solid var(--line); border-radius: 8px; background: #21262d; color: var(--text); cursor: pointer; }
-  .chat-list { flex: 1; overflow-y: auto; padding: 8px; }
-  .chat-item { position: relative; width: 100%; margin-bottom: 5px; padding: 9px 22px 9px 9px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: #c9d1d9; text-align: left; cursor: pointer; }
-  .chat-item:hover, .chat-item.active { background: #21262d; border-color: var(--line); }
-  .chat-title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; }
-  .chat-date { margin-top: 4px; color: var(--muted); font-size: 9px; }
-  .delete-chat { position: absolute; right: 5px; top: 7px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
-  .chat-main { min-width: 0; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-  .chat-header { min-height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line); background: var(--panel); }
-  .controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
-  .brand { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 650; }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: #d29922; box-shadow: 0 0 7px #d29922; }
-  .dot.online { background: #3fb950; box-shadow: 0 0 7px #3fb950; }
-  .meta { margin-top: 3px; color: var(--muted); font-size: 9px; }
-  select { max-width: 115px; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: #0d1117; color: var(--text); outline: none; font-size: 10px; }
-  .messages { flex: 1; min-height: 0; overflow-y: auto; padding: 18px; }
-  .empty { min-height: 100%; display: grid; place-items: center; text-align: center; color: var(--muted); }
-  .empty h1 { margin: 0 0 8px; color: var(--text); font-size: 19px; }
-  .message { display: flex; margin-bottom: 16px; }
-  .message.user { justify-content: flex-end; }
-  .bubble { max-width: 92%; padding: 11px 13px; border-radius: 12px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; font-size: 12px; }
-  .user .bubble { background: #1f6feb; color: white; border-bottom-right-radius: 4px; }
-  .assistant .bubble { background: var(--panel); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
-  .typing { color: var(--muted); }
-  .stream-status { color: var(--muted); }
-  .stream-text + .stream-text { margin-top: 10px; }
-  .tool-call { margin: 10px 0; overflow: hidden; border: 1px solid #30363d; border-radius: 9px; background: #0d1117; }
-  .tool-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; border-bottom: 1px solid #30363d; color: #79c0ff; font: 600 11px ui-monospace, SFMono-Regular, Consolas, monospace; }
-  .tool-state { color: var(--muted); font-size: 9px; font-weight: 400; }
-  .tool-input, .tool-output { margin: 0; padding: 10px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; color: #c9d1d9; font: 10px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
-  .tool-output { max-height: 260px; border-top: 1px solid #30363d; color: #8b949e; }
-  .tool-output.error { color: #ff7b72; }
-  .stream-error { color: #ff7b72; }
-  .stream-login { display: inline-block; margin-top: 10px; color: #79c0ff; }
-  #statusText a { color: #79c0ff; }
-  .composer-wrap { padding: 9px 12px 12px; }
-  .composer { display: flex; align-items: flex-end; gap: 8px; padding: 7px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
-  textarea { flex: 1; resize: none; min-height: 40px; max-height: 145px; padding: 10px; border: 0; outline: 0; background: transparent; color: var(--text); line-height: 1.4; }
-  textarea::placeholder { color: var(--muted); }
-  .send { width: 38px; height: 38px; border: 0; border-radius: 9px; background: #238636; color: white; font-size: 18px; cursor: pointer; }
-  .send:disabled { opacity: .45; cursor: default; }
-  .hint { padding-top: 5px; color: #6e7681; font-size: 9px; text-align: center; }
-  .user-badge { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 8px; background: #21262d; font-size: 10px; color: var(--muted); }
-  .user-badge .uname { color: var(--text); font-weight: 600; }
-  .user-badge button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 10px; padding: 0 0 0 4px; }
-  .user-badge button:hover { color: var(--text); }
-  /* Login Modal */
-  .modal-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; }
-  .modal-overlay.hidden { display: none; }
-  .modal { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 28px 28px 24px; width: 100%; max-width: 360px; }
-  .modal h2 { color: var(--text); font-size: 17px; margin-bottom: 6px; }
-  .modal p { color: var(--muted); font-size: 12px; margin-bottom: 20px; }
-  .modal label { display: block; color: var(--muted); font-size: 11px; margin-bottom: 5px; }
-  .modal input { display: block; width: 100%; padding: 9px 11px; background: #0d1117; border: 1px solid var(--line); border-radius: 8px; color: var(--text); font-size: 13px; outline: none; margin-bottom: 12px; }
-  .modal input:focus { border-color: var(--blue); }
-  .modal .btn-primary { width: 100%; padding: 10px; background: #238636; border: 0; border-radius: 8px; color: white; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 8px; }
-  .modal .btn-secondary { width: 100%; padding: 8px; background: transparent; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 12px; cursor: pointer; }
-  .modal .btn-secondary:hover { color: var(--text); }
-  .modal .modal-error { color: #f85149; font-size: 11px; margin-top: -8px; margin-bottom: 8px; display: none; }
-  .preview-pane { min-width: 0; display: flex; flex-direction: column; background: #080b10; }
-  .preview-bar { min-height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--panel); }
-  .preview-title { font-size: 13px; font-weight: 650; }
-  .preview-url { margin-top: 3px; color: var(--muted); font: 9px monospace; }
-  .preview-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
-  .preview-actions button, .preview-actions a { padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: #21262d; color: #c9d1d9; text-decoration: none; cursor: pointer; }
-  .preview-actions .publish-trigger { border-color: #2ea043; background: #238636; color: white; font-weight: 650; }
-  .preview-frame { flex: 1; width: 100%; border: 0; background: white; }
-  .publish-overlay { position: fixed; inset: 0; z-index: 120; display: flex; justify-content: flex-end; background: rgba(1,4,9,.72); backdrop-filter: blur(3px); }
-  .publish-overlay[hidden] { display: none; }
-  .publish-panel { width: min(430px, 100%); height: 100%; display: flex; flex-direction: column; padding: 22px; border-left: 1px solid var(--line); background: #0d1117; box-shadow: -18px 0 50px rgba(0,0,0,.35); }
-  .publish-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
-  .publish-head h2 { margin: 0; font-size: 19px; }
-  .publish-head p { margin: 6px 0 0; color: var(--muted); font-size: 11px; }
-  .publish-close { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 8px; background: #161b22; color: var(--muted); cursor: pointer; }
-  .publish-body { flex: 1; overflow-y: auto; padding: 22px 0; }
-  .publish-project { padding: 14px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); }
-  .publish-project strong { display: block; font-size: 13px; }
-  .publish-project span { display: block; margin-top: 5px; color: var(--muted); font-size: 10px; line-height: 1.45; }
-  .publish-steps { margin: 20px 0 0; padding: 0; list-style: none; }
-  .publish-step { display: grid; grid-template-columns: 28px minmax(0,1fr); gap: 10px; padding: 10px 0; color: var(--muted); }
-  .publish-step[hidden] { display: none; }
-  .publish-step-mark { width: 25px; height: 25px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: #161b22; color: var(--muted); font-size: 10px; }
-  .publish-step strong { display: block; color: #c9d1d9; font-size: 12px; }
-  .publish-step small { display: block; margin-top: 3px; font-size: 10px; line-height: 1.4; }
-  .publish-step.active .publish-step-mark { border-color: var(--blue); color: var(--blue); box-shadow: 0 0 0 3px rgba(88,166,255,.12); }
-  .publish-step.done .publish-step-mark { border-color: #2ea043; background: #238636; color: white; }
-  .publish-step.error .publish-step-mark { border-color: #f85149; background: rgba(248,81,73,.12); color: #ff7b72; }
-  .publish-result { margin-top: 20px; padding: 15px; border: 1px solid rgba(46,160,67,.7); border-radius: 11px; background: rgba(35,134,54,.12); }
-  .publish-result[hidden] { display: none; }
-  .publish-result-title { display: flex; align-items: center; gap: 8px; color: #56d364; font-size: 13px; font-weight: 700; }
-  .live-signal { width: 9px; height: 9px; border-radius: 50%; background: #3fb950; box-shadow: 0 0 10px #3fb950; }
-  .publish-result p { margin: 8px 0 0; color: #b1bac4; font-size: 10px; line-height: 1.5; }
-  .publish-result a { display: inline-block; margin-top: 10px; color: #79c0ff; font-size: 11px; text-decoration: none; }
-  .publish-footer { padding-top: 16px; border-top: 1px solid var(--line); }
-  .publish-confirm { width: 100%; padding: 11px 14px; border: 0; border-radius: 9px; background: #238636; color: white; font-weight: 700; cursor: pointer; }
-  .publish-confirm:disabled { opacity: .55; cursor: wait; }
-  @media (max-width: 900px) {
-    body { overflow: auto; }
-    .workspace { height: auto; min-height: 100%; grid-template-columns: 1fr; grid-template-rows: minmax(650px, 68vh) minmax(620px, 72vh); }
-    .chat-pane { border-right: 0; border-bottom: 1px solid var(--line); }
+  body {
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  @media (max-width: 560px) {
-    .chat-pane { grid-template-columns: 105px minmax(0, 1fr); }
-    .history-head, .chat-list { padding: 6px; }
-    .chat-header, .preview-bar { padding: 8px; }
-    .messages { padding: 12px 8px; }
+  button, select, textarea, input { font: inherit; }
+  button { color: inherit; }
+  .icon { width: 17px; height: 17px; display: block; }
+  .app {
+    --sidebar-width: 246px;
+    --preview-width: 46%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: var(--sidebar-width) minmax(360px, 1fr) 6px minmax(320px, var(--preview-width));
+    background: var(--bg);
+  }
+  .app.sidebar-collapsed { --sidebar-width: 54px; }
+  .sidebar {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--line-soft);
+    background: var(--sidebar);
+    overflow: hidden;
+    transition: width .18s ease;
+  }
+  .brand {
+    height: 58px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px;
+    font-size: 14px;
+    font-weight: 650;
+    letter-spacing: -.01em;
+  }
+  .brand-copy { flex: 1; min-width: 0; white-space: nowrap; }
+  .sidebar-toggle {
+    width: 27px;
+    height: 27px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--faint);
+    cursor: pointer;
+  }
+  .sidebar-toggle:hover { background: #242424; color: var(--text); }
+  .sidebar-toggle svg { transition: transform .18s ease; }
+  .app.sidebar-collapsed .sidebar-toggle svg { transform: rotate(180deg); }
+  .brand-mark {
+    width: 27px;
+    height: 27px;
+    display: grid;
+    place-items: center;
+    border: 1px solid #3b3b3b;
+    border-radius: 8px;
+    background: #f2f2f2;
+    color: #111;
+    font: 700 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .brand small { display: block; color: var(--faint); font-size: 9px; font-weight: 500; margin-top: 2px; }
+  .new-thread {
+    height: 38px;
+    margin: 4px 10px 10px;
+    padding: 0 11px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    border: 1px solid #373737;
+    border-radius: 8px;
+    background: #202020;
+    color: #ddd;
+    cursor: pointer;
+    font-size: 12px;
+    text-align: left;
+  }
+  .new-thread:hover { background: var(--hover); border-color: #444; }
+  .new-thread-label { white-space: nowrap; }
+  .section-label {
+    padding: 9px 14px 7px;
+    color: var(--faint);
+    font-size: 9px;
+    font-weight: 650;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .thread-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 7px 12px; }
+  .thread {
+    position: relative;
+    width: 100%;
+    min-height: 48px;
+    margin: 1px 0;
+    padding: 8px 29px 8px 9px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: #b8b8b8;
+    cursor: pointer;
+    text-align: left;
+  }
+  .thread:hover { background: #202020; }
+  .thread.active { background: #282828; border-color: #333; color: var(--text); }
+  .thread-title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; line-height: 1.35; }
+  .thread-meta { display: flex; gap: 6px; align-items: center; margin-top: 4px; color: var(--faint); font-size: 9px; }
+  .provider-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--blue); }
+  .provider-dot.claude { background: #d79767; }
+  .delete-thread {
+    position: absolute;
+    top: 11px;
+    right: 7px;
+    width: 22px;
+    height: 22px;
+    display: none;
+    place-items: center;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--faint);
+    cursor: pointer;
+  }
+  .thread:hover .delete-thread { display: grid; }
+  .delete-thread:hover { background: #383838; color: var(--text); }
+  .sidebar-foot { padding: 8px; border-top: 1px solid var(--line-soft); }
+  .user-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+  }
+  .user-row:hover { background: #222; }
+  .avatar {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: #e8e8e8;
+    color: #151515;
+    font-size: 10px;
+    font-weight: 750;
+    text-transform: uppercase;
+  }
+  .user-copy { flex: 1; min-width: 0; }
+  .user-name { display: block; overflow: hidden; text-overflow: ellipsis; font-size: 11px; font-weight: 600; }
+  .user-state { display: block; margin-top: 2px; color: var(--faint); font-size: 9px; }
+  .app.sidebar-collapsed .brand { padding: 0; justify-content: center; }
+  .app.sidebar-collapsed .brand-mark,
+  .app.sidebar-collapsed .brand-copy,
+  .app.sidebar-collapsed .section-label,
+  .app.sidebar-collapsed .thread-list,
+  .app.sidebar-collapsed .new-thread-label,
+  .app.sidebar-collapsed .user-copy,
+  .app.sidebar-collapsed .user-row > svg { display: none; }
+  .app.sidebar-collapsed .new-thread { width: 36px; margin: 4px auto 10px; padding: 0; justify-content: center; }
+  .app.sidebar-collapsed .sidebar-foot { padding: 8px 5px; }
+  .app.sidebar-collapsed .user-row { padding: 5px; justify-content: center; }
+  .chat {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--line-soft);
+    background: var(--bg);
+  }
+  .topbar, .preview-bar {
+    height: 58px;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .project-select, .control-select {
+    min-width: 0;
+    height: 31px;
+    padding: 0 27px 0 9px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: #d8d8d8;
+    outline: 0;
+    cursor: pointer;
+    font-size: 11px;
+  }
+  .project-select:hover, .control-select:hover { border-color: #353535; background: #191919; }
+  select option { background: #202020; color: var(--text); }
+  .top-actions { display: flex; align-items: center; gap: 7px; }
+  .status-pill, .secure-pill, .test-pill {
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 9px;
+    border: 1px solid #303030;
+    border-radius: 999px;
+    background: #171717;
+    color: var(--muted);
+    font-size: 9px;
+    white-space: nowrap;
+  }
+  button.status-pill { cursor: pointer; font-family: inherit; }
+  button.status-pill:hover { border-color: #454545; background: #202020; color: var(--text); }
+  .status-light { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); }
+  .status-light.online { background: var(--green); box-shadow: 0 0 7px rgba(85,197,122,.45); }
+  .status-light.offline { background: var(--red); }
+  .messages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 24px max(22px, 7%);
+    scroll-behavior: smooth;
+  }
+  .empty {
+    min-height: 100%;
+    display: grid;
+    place-items: center;
+    text-align: center;
+  }
+  .empty-mark {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    margin: 0 auto 18px;
+    border: 1px solid #333;
+    border-radius: 13px;
+    background: #171717;
+    color: #cfcfcf;
+    font: 700 15px ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .empty h1 { margin: 0; font-size: 20px; font-weight: 540; letter-spacing: -.025em; }
+  .empty p { max-width: 330px; margin: 9px auto 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+  .message { display: flex; margin: 0 auto 22px; max-width: 760px; }
+  .message.user { justify-content: flex-end; }
+  .bubble {
+    max-width: 92%;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 12px;
+    line-height: 1.65;
+  }
+  .user .bubble {
+    padding: 9px 13px;
+    border: 1px solid #363636;
+    border-radius: 13px 13px 4px 13px;
+    background: #242424;
+  }
+  .assistant .bubble { width: 100%; color: #d9d9d9; }
+  .assistant-head { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; color: var(--faint); font-size: 9px; }
+  .assistant-mark {
+    width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    border: 1px solid #333;
+    border-radius: 5px;
+    background: #171717;
+    color: #ccc;
+    font: 700 8px ui-monospace, monospace;
+  }
+  .typing { color: var(--muted); }
+  .tool-card { margin: 10px 0; border: 1px solid #303030; border-radius: 8px; background: #151515; overflow: hidden; }
+  .tool-head { display: flex; justify-content: space-between; padding: 7px 9px; border-bottom: 1px solid #292929; color: #aaa; font: 10px ui-monospace, monospace; }
+  .tool-body { max-height: 230px; margin: 0; padding: 9px; overflow: auto; color: #888; font: 9px/1.55 ui-monospace, monospace; white-space: pre-wrap; }
+  .error-text { color: #ff8585; }
+  .composer-wrap { flex: 0 0 auto; padding: 10px max(18px, 6%) 15px; }
+  .composer {
+    max-width: 780px;
+    margin: 0 auto;
+    overflow: hidden;
+    border: 1px solid #383838;
+    border-radius: 13px;
+    background: #1a1a1a;
+    box-shadow: 0 10px 30px rgba(0,0,0,.2);
+  }
+  textarea {
+    width: 100%;
+    min-height: 62px;
+    max-height: 170px;
+    padding: 14px 14px 7px;
+    border: 0;
+    outline: 0;
+    resize: none;
+    background: transparent;
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  textarea::placeholder { color: #707070; }
+  .composer-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px; }
+  .composer-controls { min-width: 0; display: flex; align-items: center; gap: 3px; }
+  .control-select { max-width: 120px; height: 28px; padding-left: 7px; font-size: 9px; }
+  .send {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: 8px;
+    background: #ededed;
+    color: #111;
+    cursor: pointer;
+  }
+  .send:hover { background: white; }
+  .send:disabled { background: #333; color: #666; cursor: default; }
+  .composer-hint { margin: 7px auto 0; color: #5f5f5f; font-size: 8px; text-align: center; }
+  .preview { min-width: 0; display: flex; flex-direction: column; background: #111; }
+  .preview-resizer {
+    position: relative;
+    z-index: 5;
+    width: 6px;
+    cursor: col-resize;
+    background: #111;
+    touch-action: none;
+  }
+  .preview-resizer::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 2px;
+    width: 1px;
+    background: #2b2b2b;
+    transition: background .15s, width .15s, left .15s;
+  }
+  .preview-resizer:hover::after,
+  body.resizing-preview .preview-resizer::after { left: 1px; width: 3px; background: #666; }
+  body.resizing-preview { cursor: col-resize; user-select: none; }
+  body.resizing-preview iframe { pointer-events: none; }
+  .preview-copy { min-width: 0; }
+  .preview-title { font-size: 11px; font-weight: 650; }
+  .preview-url { max-width: 300px; margin-top: 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--faint); font: 8px ui-monospace, monospace; }
+  .preview-actions { display: flex; align-items: center; gap: 6px; }
+  .icon-btn, .text-btn {
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 9px;
+    border: 1px solid #343434;
+    border-radius: 7px;
+    background: #1b1b1b;
+    color: #aaa;
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 9px;
+  }
+  .icon-btn { width: 30px; padding: 0; }
+  .icon-btn:hover, .text-btn:hover { background: #252525; color: var(--text); }
+  .text-btn.primary { border-color: #e1e1e1; background: #e9e9e9; color: #111; }
+  .text-btn:disabled, .icon-btn:disabled { opacity: .45; cursor: default; }
+  .preview-frame { flex: 1; min-height: 0; width: 100%; border: 0; background: white; }
+  .drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: none;
+    justify-content: flex-end;
+    background: rgba(0,0,0,.58);
+    backdrop-filter: blur(2px);
+  }
+  .drawer-backdrop.open { display: flex; }
+  .drawer {
+    width: min(430px, 100%);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid #333;
+    background: #141414;
+    box-shadow: -20px 0 60px rgba(0,0,0,.4);
+  }
+  .drawer-head { height: 62px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; border-bottom: 1px solid var(--line-soft); }
+  .drawer-head h2 { margin: 0; font-size: 14px; font-weight: 650; }
+  .drawer-body { flex: 1; overflow-y: auto; padding: 19px; }
+  .settings-title { margin: 0 0 9px; color: var(--faint); font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .account-card, .setting-card {
+    margin-bottom: 10px;
+    padding: 14px;
+    border: 1px solid #2d2d2d;
+    border-radius: 10px;
+    background: #191919;
+  }
+  .account-top, .setting-row { display: flex; align-items: center; gap: 11px; }
+  .account-logo {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border: 1px solid #363636;
+    border-radius: 9px;
+    background: #222;
+    font: 700 10px ui-monospace, monospace;
+  }
+  .account-copy, .setting-copy { flex: 1; min-width: 0; }
+  .account-name, .setting-name { font-size: 11px; font-weight: 650; }
+  .account-state, .setting-help { margin-top: 3px; color: var(--faint); font-size: 9px; line-height: 1.45; }
+  .connect-btn {
+    height: 29px;
+    padding: 0 10px;
+    border: 1px solid #3a3a3a;
+    border-radius: 7px;
+    background: #242424;
+    color: #d2d2d2;
+    cursor: pointer;
+    font-size: 9px;
+  }
+  .connect-btn:hover { background: #2c2c2c; }
+  .connect-btn.connected { color: #85d99e; }
+  .account-intro {
+    margin-bottom: 12px;
+    padding: 11px 12px;
+    border: 1px solid #2d2d2d;
+    border-radius: 9px;
+    background: #171717;
+    color: var(--muted);
+    font-size: 9px;
+    line-height: 1.55;
+  }
+  .device-code {
+    display: none;
+    margin-top: 11px;
+    padding: 10px;
+    border: 1px solid #333;
+    border-radius: 8px;
+    background: #111;
+    color: var(--muted);
+    font-size: 9px;
+    line-height: 1.6;
+  }
+  .device-code.show { display: block; }
+  .device-code strong { color: var(--text); font: 650 14px ui-monospace, monospace; letter-spacing: .08em; }
+  .switch {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    flex: 0 0 auto;
+  }
+  .switch input { position: absolute; opacity: 0; pointer-events: none; }
+  .switch span {
+    position: absolute;
+    inset: 0;
+    border: 1px solid #444;
+    border-radius: 999px;
+    background: #292929;
+    cursor: pointer;
+    transition: .18s;
+  }
+  .switch span::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #aaa;
+    transition: .18s;
+  }
+  .switch input:checked + span { border-color: #6d6d6d; background: #e7e7e7; }
+  .switch input:checked + span::after { transform: translateX(16px); background: #151515; }
+  .switch input:disabled + span { opacity: .55; cursor: default; }
+  .danger-row { margin-top: 26px; padding-top: 15px; border-top: 1px solid var(--line-soft); }
+  .logout-btn { width: 100%; height: 34px; border: 1px solid #4a2c2c; border-radius: 8px; background: #211717; color: #dd8585; cursor: pointer; font-size: 10px; }
+  .modal-backdrop { position: fixed; inset: 0; z-index: 70; display: none; place-items: center; padding: 20px; background: #0d0d0d; }
+  .modal-backdrop.open { display: grid; }
+  .modal { width: min(360px, 100%); padding: 24px; border: 1px solid #333; border-radius: 13px; background: #181818; }
+  .modal h2 { margin: 0; font-size: 17px; }
+  .modal p { margin: 7px 0 18px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+  .modal label { display: block; margin: 0 0 5px; color: var(--muted); font-size: 9px; }
+  .modal input {
+    width: 100%;
+    height: 37px;
+    margin-bottom: 11px;
+    padding: 0 10px;
+    border: 1px solid #383838;
+    border-radius: 8px;
+    outline: 0;
+    background: #111;
+    color: var(--text);
+    font-size: 11px;
+  }
+  .modal input:focus { border-color: #666; }
+  .modal-error { min-height: 17px; color: var(--red); font-size: 9px; }
+  .modal-primary, .modal-secondary { width: 100%; height: 36px; border-radius: 8px; cursor: pointer; font-size: 10px; }
+  .modal-primary { border: 0; background: #eee; color: #111; font-weight: 650; }
+  .modal-secondary { margin-top: 7px; border: 1px solid #333; background: transparent; color: var(--muted); }
+  .publish-backdrop { background: rgba(0,0,0,.68); backdrop-filter: blur(3px); }
+  .publish-modal { width: min(480px, 100%); }
+  .publish-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .publish-head .icon-btn { margin-top: -6px; margin-right: -6px; }
+  .publish-target {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 11px 12px;
+    border: 1px solid #303030;
+    border-radius: 9px;
+    background: #131313;
+    color: var(--muted);
+    font-size: 10px;
+  }
+  .publish-target strong { color: var(--text); font: 650 10px ui-monospace, monospace; }
+  .publish-files {
+    max-height: 170px;
+    margin: 0 0 12px;
+    padding: 9px 11px;
+    overflow: auto;
+    border: 1px solid #303030;
+    border-radius: 8px;
+    background: #111;
+    color: #aaa;
+    font: 9px/1.65 ui-monospace, monospace;
+    white-space: pre-wrap;
+  }
+  .publish-note { min-height: 16px; margin: -3px 0 10px; color: var(--faint); font-size: 9px; line-height: 1.45; }
+  .publish-actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; margin-top: 4px; }
+  .publish-actions .modal-secondary { margin-top: 0; }
+  .modal-primary:disabled { opacity: .45; cursor: default; }
+  @media (max-width: 1180px) {
+    .app { --sidebar-width: 210px; grid-template-columns: var(--sidebar-width) minmax(360px, 1fr) 5px minmax(300px, var(--preview-width)); }
+    .app.sidebar-collapsed { --sidebar-width: 54px; }
+  }
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .preview-resizer, .preview { display: none; }
+    .chat { border-right: 0; }
+    .status-pill { display: none; }
+    .messages { padding-inline: 16px; }
+    .composer-wrap { padding-inline: 10px; }
   }
 </style>
 </head>
 <body>
-<!-- Login Modal -->
-<div class="modal-overlay hidden" id="loginModal">
-  <div class="modal">
-    <h2 id="modalTitle">Anmelden</h2>
-    <p id="modalSubtitle">Melde dich an um deine Chats und den Verlauf zu sehen.</p>
-    <label>Benutzername</label>
-    <input type="text" id="modalUsername" autocomplete="username" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="z.B. ole">
-    <label>Passwort</label>
-    <input type="password" id="modalPassword" autocomplete="current-password" placeholder="Passwort">
-    <div class="modal-error" id="modalError"></div>
-    <button class="btn-primary" id="modalSubmit">Anmelden</button>
-    <button class="btn-secondary" id="modalToggle">Noch kein Konto? Registrieren</button>
-  </div>
-</div>
-
-<div class="workspace">
-  <section class="chat-pane" id="chatPane">
-    <aside class="history">
-      <div class="history-head">
-        <button class="history-toggle" id="historyToggle" title="Alte Chats ein-/ausklappen">☰</button>
-        <button class="new-chat" id="newChat">+ Neuer Chat</button>
-      </div>
-      <div class="chat-list" id="chatList"></div>
-    </aside>
-    <div class="chat-main">
-      <header class="chat-header">
-        <div>
-          <div class="brand"><span class="dot" id="statusDot"></span>Claude Code</div>
-        <div class="meta" id="statusText">Prüfe Subscription...</div>
-        </div>
-        <div class="controls">
-          <div class="user-badge" id="userBadge" style="display:none">
-            <span>👤</span><span class="uname" id="userBadgeName"></span>
-            <button id="userLogout" title="Abmelden">×</button>
-          </div>
-          <select id="project" aria-label="Projekt"></select>
-          <select id="model" aria-label="Claude-Modell">
-            <option value="sonnet">Sonnet 4.6</option>
-            <option value="opus">Opus 4.6</option>
-            <option value="haiku">Haiku 4.5</option>
-            <option value="fable" disabled>Fable 5 (nicht verfügbar)</option>
-          </select>
-          <select id="effort" aria-label="Aufwand">
-            <option value="low">Aufwand: niedrig</option>
-            <option value="medium" selected>Aufwand: mittel</option>
-            <option value="high">Aufwand: hoch</option>
-            <option value="xhigh">Aufwand: maximal</option>
-          </select>
-        </div>
-      </header>
-      <main class="messages" id="messages">
-        <div class="empty" id="empty"><div><h1>Woran sollen wir arbeiten?</h1><p>Claude hat Zugriff auf Projekt und Server.</p></div></div>
-      </main>
-      <div class="composer-wrap">
-        <form class="composer" id="form">
-          <textarea id="input" rows="1" placeholder="Nachricht an Claude Code..." autofocus></textarea>
-          <button class="send" id="send" type="submit" aria-label="Senden">↑</button>
-        </form>
-        <div class="hint" id="usage">Automatische Kontextkomprimierung aktiv · Chats werden gespeichert</div>
-      </div>
+<div class="app" id="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">&gt;_</div>
+      <div class="brand-copy">Practio Code<small>Agent workspace</small></div>
+      <button class="sidebar-toggle" id="sidebarToggle" type="button" title="Seitenleiste einklappen" aria-label="Seitenleiste einklappen">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m14 6-6 6 6 6"/></svg>
+      </button>
     </div>
-  </section>
-  <section class="preview-pane">
-    <header class="preview-bar">
-      <div><div class="preview-title">Isolierte Preview</div><div class="preview-url" id="previewLabel">Preview wird geladen...</div></div>
-      <div class="preview-actions">
-        <button id="reloadPreview" type="button">↻ Neu laden</button>
-        <button class="publish-trigger" id="publishOpen" type="button">Review-Branch</button>
-        <a id="openPreview" href="https://dashboard.praxis-sorgenfrey.de:8443" target="_blank" rel="noopener">Neuer Tab ↗</a>
+    <button class="new-thread" id="newChat">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
+      <span class="new-thread-label">Neuer Thread</span>
+    </button>
+    <div class="section-label">Threads</div>
+    <div class="thread-list" id="chatList"></div>
+    <div class="sidebar-foot">
+      <button class="user-row" id="settingsOpen">
+        <span class="avatar" id="avatar">T</span>
+        <span class="user-copy"><span class="user-name" id="userName">Testaccount</span><span class="user-state">Accounts & Einstellungen</span></span>
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.06.06-2.12 2.12-.06-.06a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.1 1.65V20.5h-3v-.09A1.8 1.8 0 0 0 10.45 18.75a1.8 1.8 0 0 0-1.98.36l-.06.06-2.12-2.12.06-.06A1.8 1.8 0 0 0 6.7 15a1.8 1.8 0 0 0-1.65-1.1H5v-3h.05A1.8 1.8 0 0 0 6.7 9.8a1.8 1.8 0 0 0-.36-1.98l-.06-.06 2.12-2.12.06.06a1.8 1.8 0 0 0 1.98.36A1.8 1.8 0 0 0 11.55 4.4V4.3h3v.1a1.8 1.8 0 0 0 1.1 1.65 1.8 1.8 0 0 0 1.98-.36l.06-.06 2.12 2.12-.06.06a1.8 1.8 0 0 0-.36 1.98 1.8 1.8 0 0 0 1.65 1.1H21v3h-.05A1.8 1.8 0 0 0 19.4 15z"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <main class="chat">
+    <header class="topbar">
+      <select class="project-select" id="project" aria-label="Projekt"></select>
+      <div class="top-actions">
+        <span class="secure-pill" id="securePill">SecureTTY</span>
+        <button class="status-pill" id="providerLogin" type="button"><span class="status-light" id="statusLight"></span><span id="statusText">Prüfe Account</span></button>
       </div>
     </header>
-    <iframe class="preview-frame" id="preview" src="https://dashboard.praxis-sorgenfrey.de:8443" title="Epikur Isolated Preview" allow="clipboard-read; clipboard-write"></iframe>
+    <section class="messages" id="messages"></section>
+    <div class="composer-wrap">
+      <form class="composer" id="form">
+        <textarea id="input" rows="1" placeholder="Beschreibe, was geändert werden soll …" autofocus></textarea>
+        <div class="composer-foot">
+          <div class="composer-controls">
+            <select class="control-select" id="provider" aria-label="Provider">
+              <option value="codex">Codex</option>
+              <option value="claude">Claude</option>
+            </select>
+            <select class="control-select" id="model" aria-label="Modell"></select>
+            <select class="control-select" id="effort" aria-label="Reasoning">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+              <option value="xhigh">XHigh</option>
+            </select>
+          </div>
+          <button class="send" id="send" type="submit" aria-label="Senden">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
+          </button>
+        </div>
+      </form>
+      <div class="composer-hint" id="usage">Enter senden · Shift+Enter Zeilenumbruch · Threads werden pro Nutzer gespeichert</div>
+    </div>
+  </main>
+
+  <div class="preview-resizer" id="previewResizer" role="separator" aria-orientation="vertical" aria-label="Preview-Größe ändern" title="Ziehen, um die Preview-Größe zu ändern"></div>
+  <section class="preview">
+    <header class="preview-bar">
+      <div class="preview-copy">
+        <div class="preview-title">Preview</div>
+        <div class="preview-url" id="previewLabel">Projekt wird vorbereitet …</div>
+      </div>
+      <div class="preview-actions">
+        <span class="test-pill" id="testPill"><span class="status-light"></span>Testaccount</span>
+        <button class="icon-btn" id="reloadPreview" type="button" title="Neu laden">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 6v5h-5M4 18v-5h5"/><path d="M18.2 9A7 7 0 0 0 6.4 6.4L4 11M20 13l-2.4 4.6A7 7 0 0 1 5.8 15"/></svg>
+        </button>
+        <button class="text-btn primary" id="publish" type="button">Publish</button>
+        <a class="icon-btn" id="openPreview" target="_blank" rel="noopener" title="In neuem Tab öffnen">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 5h5v5M10 14 19 5"/><path d="M19 13v6H5V5h6"/></svg>
+        </a>
+      </div>
+    </header>
+    <iframe class="preview-frame" id="preview" title="Epikur Preview" allow="clipboard-read; clipboard-write"></iframe>
   </section>
 </div>
-<div class="publish-overlay" id="publishOverlay" hidden>
-  <aside class="publish-panel" role="dialog" aria-modal="true" aria-labelledby="publishTitle">
-    <div class="publish-head">
-      <div><h2 id="publishTitle">Review-Branch pushen</h2><p>Feature-Branch aktualisieren. Merge und Deployment bleiben manuell.</p></div>
-      <button class="publish-close" id="publishClose" type="button" aria-label="Panel schließen">×</button>
+
+<div class="drawer-backdrop" id="settingsBackdrop">
+  <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="drawer-head">
+      <h2 id="settingsTitle">Einstellungen</h2>
+      <button class="icon-btn" id="settingsClose" type="button" aria-label="Schließen">×</button>
     </div>
-    <div class="publish-body">
-      <div class="publish-project">
-        <strong id="publishProjectName">Projekt</strong>
-        <span id="publishSummary">Prüfe den aktuellen Stand...</span>
+    <div class="drawer-body">
+      <div class="settings-title">Verbundene Accounts</div>
+      <div class="account-intro">Verbinde hier deinen eigenen Claude- oder Codex-Account. Zugangsdaten werden je Dashboard-Nutzer getrennt auf dem Server gespeichert.</div>
+      <div class="account-card">
+        <div class="account-top">
+          <div class="account-logo">CX</div>
+          <div class="account-copy"><div class="account-name">OpenAI Codex</div><div class="account-state" id="codexState">Status wird geprüft …</div></div>
+          <button class="connect-btn" id="codexConnect" type="button">Verbinden</button>
+        </div>
+        <div class="device-code" id="codexDevice"></div>
       </div>
-      <ol class="publish-steps">
-        <li class="publish-step" data-publish-step="push">
-          <span class="publish-step-mark">1</span>
-          <div><strong>Feature-Branch pushen</strong><small>Offene Änderungen committen, auf main rebasen und den aktuellen Branch pushen.</small></div>
-        </li>
-        <li class="publish-step" data-publish-step="deploy" hidden>
-          <span class="publish-step-mark">2</span>
-          <div><strong>Produktion deployen</strong><small>Die Produktionsversion wird neu gebaut und gestartet.</small></div>
-        </li>
-        <li class="publish-step" data-publish-step="live" hidden>
-          <span class="publish-step-mark">3</span>
-          <div><strong>Live prüfen</strong><small>Der echte Produktionsendpunkt wird kontrolliert.</small></div>
-        </li>
-      </ol>
-      <div class="publish-result" id="publishResult" hidden>
-        <div class="publish-result-title"><span class="live-signal"></span><span id="publishResultTitle">Branch bereit</span></div>
-        <p id="publishResultText"></p>
-        <a id="publishLiveLink" target="_blank" rel="noopener">Live-Version öffnen ↗</a>
+      <div class="account-card">
+        <div class="account-top">
+          <div class="account-logo">CL</div>
+          <div class="account-copy"><div class="account-name">Claude Code</div><div class="account-state" id="claudeState">Status wird geprüft …</div></div>
+          <button class="connect-btn" id="claudeConnect" type="button">Verbinden</button>
+        </div>
+        <div class="device-code" id="claudeDevice"></div>
       </div>
-    </div>
-    <div class="publish-footer">
-      <button class="publish-confirm" id="publishConfirm" type="button">Branch pushen</button>
+
+      <div class="settings-title" style="margin-top:22px">Workspace</div>
+      <div class="setting-card">
+        <div class="setting-row">
+          <div class="setting-copy">
+            <div class="setting-name">SecureTTY</div>
+            <div class="setting-help">Begrenzt Agenten auf das ausgewählte Repository. Ausgeschaltet ist voller Serverzugriff erlaubt.</div>
+          </div>
+          <label class="switch"><input id="secureToggle" type="checkbox"><span></span></label>
+        </div>
+      </div>
+      <div class="setting-card">
+        <div class="setting-row">
+          <div class="setting-copy">
+            <div class="setting-name">Testaccount automatisch anmelden</div>
+            <div class="setting-help" id="testAccountHelp">Für jede Epikur-Preview dauerhaft aktiv.</div>
+          </div>
+          <label class="switch"><input type="checkbox" checked disabled><span></span></label>
+        </div>
+      </div>
+      <div class="danger-row">
+        <button class="logout-btn" id="logout" type="button">Vom Dashboard abmelden</button>
+      </div>
     </div>
   </aside>
 </div>
+
+<div class="modal-backdrop" id="loginModal">
+  <div class="modal">
+    <h2 id="modalTitle">Anmelden</h2>
+    <p id="modalSubtitle">Melde dich an, um deine Threads und verbundenen Accounts zu verwenden.</p>
+    <label for="modalUsername">Benutzername</label>
+    <input id="modalUsername" type="text" autocomplete="username" autocorrect="off" autocapitalize="none" spellcheck="false">
+    <label for="modalPassword">Passwort</label>
+    <input id="modalPassword" type="password" autocomplete="current-password">
+    <div class="modal-error" id="modalError"></div>
+    <button class="modal-primary" id="modalSubmit" type="button">Anmelden</button>
+    <button class="modal-secondary" id="modalToggle" type="button">Noch kein Konto? Registrieren</button>
+  </div>
+</div>
+
+<div class="modal-backdrop publish-backdrop" id="publishModal">
+  <div class="modal publish-modal" role="dialog" aria-modal="true" aria-labelledby="publishTitle">
+    <div class="publish-head">
+      <div>
+        <h2 id="publishTitle">Nach main veröffentlichen</h2>
+        <p id="publishSubtitle">Die Änderungen der aktuell sichtbaren Preview werden veröffentlicht. Autodeploy übernimmt danach den Rest.</p>
+      </div>
+      <button class="icon-btn" id="publishClose" type="button" aria-label="Schließen">×</button>
+    </div>
+    <div class="publish-target"><span>Repository</span><strong id="publishTarget">Preview → main</strong></div>
+    <label for="publishMessage">Commit-Nachricht</label>
+    <input id="publishMessage" type="text" maxlength="120" autocomplete="off">
+    <label>Änderungen</label>
+    <div class="publish-files" id="publishFiles">Git-Status wird geladen …</div>
+    <div class="publish-note" id="publishNote"></div>
+    <div class="modal-error" id="publishError"></div>
+    <div class="publish-actions">
+      <button class="modal-secondary" id="publishCancel" type="button">Abbrechen</button>
+      <button class="modal-primary" id="publishConfirm" type="button">Nach main pushen</button>
+    </div>
+  </div>
+</div>
+
 <script>
-  const chatList = document.getElementById('chatList');
-  const messages = document.getElementById('messages');
-  const emptyTemplate = document.getElementById('empty').cloneNode(true);
-  const input = document.getElementById('input');
-  const send = document.getElementById('send');
-  const form = document.getElementById('form');
-  const model = document.getElementById('model');
-  const effort = document.getElementById('effort');
-  const project = document.getElementById('project');
-  const preview = document.getElementById('preview');
-  const openPreview = document.getElementById('openPreview');
-  const previewLabel = document.getElementById('previewLabel');
-  const usage = document.getElementById('usage');
-  const publishOpen = document.getElementById('publishOpen');
-  const publishOverlay = document.getElementById('publishOverlay');
-  const publishClose = document.getElementById('publishClose');
-  const publishConfirm = document.getElementById('publishConfirm');
-  const publishSummary = document.getElementById('publishSummary');
-  const publishResult = document.getElementById('publishResult');
-  let activeChat = null;
+  const $ = id => document.getElementById(id);
+  const els = {
+    app: $('app'), sidebarToggle: $('sidebarToggle'), previewResizer: $('previewResizer'),
+    chatList: $('chatList'), messages: $('messages'), input: $('input'), send: $('send'),
+    form: $('form'), provider: $('provider'), model: $('model'), effort: $('effort'),
+    project: $('project'), preview: $('preview'), previewLabel: $('previewLabel'),
+    openPreview: $('openPreview'), usage: $('usage'), statusLight: $('statusLight'),
+    statusText: $('statusText'), securePill: $('securePill'), testPill: $('testPill'),
+    providerLogin: $('providerLogin'),
+    settingsBackdrop: $('settingsBackdrop'), secureToggle: $('secureToggle'),
+    codexState: $('codexState'), claudeState: $('claudeState'),
+    codexConnect: $('codexConnect'), claudeConnect: $('claudeConnect'),
+    codexDevice: $('codexDevice'), claudeDevice: $('claudeDevice'),
+    publishModal: $('publishModal'), publishMessage: $('publishMessage'),
+    publishFiles: $('publishFiles'), publishNote: $('publishNote'),
+    publishError: $('publishError'), publishConfirm: $('publishConfirm'),
+  };
+
+  const providers = {
+    codex: {
+      label: 'Codex',
+      models: [
+        { id: 'gpt-5.5', label: 'GPT-5.5' },
+        { id: 'gpt-5.4', label: 'GPT-5.4' },
+        { id: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' },
+      ],
+    },
+    claude: {
+      label: 'Claude',
+      models: [
+        { id: 'sonnet', label: 'Sonnet' },
+        { id: 'opus', label: 'Opus' },
+        { id: 'haiku', label: 'Haiku' },
+      ],
+    },
+  };
+
   let chats = [];
   let projects = [];
+  let activeChat = null;
   let activatedProject = null;
+  let currentUser = null;
   let busy = false;
-  let publishBusy = false;
-  let previewRetryTimer = null;
-
-  function startPreviewRetry(url, label) {
-    clearInterval(previewRetryTimer);
-    let attempts = 0;
-    previewRetryTimer = setInterval(async () => {
-      attempts++;
-      try {
-        const r = await fetch(url, { mode: 'no-cors' });
-        clearInterval(previewRetryTimer);
-        previewRetryTimer = null;
-        preview.src = `${url}${url.includes('?') ? '&' : '?'}dashboardPreview=${Date.now()}`;
-        previewLabel.textContent = `${label} · isolierte Dev-Datenbank`;
-      } catch (e) {
-        previewLabel.textContent = `${label} kompiliert... (${attempts * 20}s)`;
-      }
-      if (attempts >= 20) {
-        clearInterval(previewRetryTimer);
-        previewRetryTimer = null;
-        previewLabel.textContent = `${label} · zum Laden auf ↻ klicken`;
-      }
-    }, 20_000);
-  }
+  let settings = { secureTty: true, autoTestAccount: true, testAccountConfigured: false };
+  let providerStatus = { codex: { loggedIn: false }, claude: { loggedIn: false } };
+  let modalMode = 'login';
+  let publishing = false;
+  let publishRetryProject = null;
+  let previewWidth = Number(localStorage.getItem('practioCodePreviewWidth')) || 0;
 
   async function api(url, options) {
     const response = await fetch(url, options);
-    const data = await response.json();
+    const type = response.headers.get('content-type') || '';
+    const data = type.includes('application/json') ? await response.json() : await response.text();
     if (!response.ok) {
-      const error = new Error(data.error || 'Anfrage fehlgeschlagen');
-      error.stage = data.stage || null;
+      const error = new Error(data?.error || data?.message || data || `HTTP ${response.status}`);
+      error.status = response.status;
       throw error;
     }
     return data;
   }
 
-  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-
-  function setPublishStep(name, state, detail) {
-    const step = document.querySelector(`[data-publish-step="${name}"]`);
-    if (!step) return;
-    step.classList.remove('active', 'done', 'error');
-    if (state) step.classList.add(state);
-    const mark = step.querySelector('.publish-step-mark');
-    mark.textContent = state === 'done' ? '✓' : state === 'error' ? '!' : ({ push: '1', deploy: '2', live: '3' }[name]);
-    if (detail) step.querySelector('small').textContent = detail;
+  function initials(value) {
+    return String(value || 'T').slice(0, 2).toUpperCase();
   }
 
-  function resetPublishPanel(selected) {
-    publishResult.hidden = true;
-    publishConfirm.disabled = false;
-    publishConfirm.textContent = 'Branch pushen';
-    document.getElementById('publishProjectName').textContent = selected?.label || 'Projekt';
-    setPublishStep('push', '', 'Offene Änderungen committen, auf main rebasen und den Feature-Branch pushen.');
-    document.querySelector('[data-publish-step="deploy"]').hidden = true;
-    document.querySelector('[data-publish-step="live"]').hidden = true;
+  function setUser(user) {
+    currentUser = user;
+    $('userName').textContent = user.username;
+    $('avatar').textContent = initials(user.username);
   }
 
-  async function openPublishPanel() {
-    const selected = projects.find(entry => entry.id === project.value);
-    resetPublishPanel(selected);
-    publishOverlay.hidden = false;
-    publishSummary.textContent = 'Prüfe den aktuellen Stand...';
-    try {
-      const status = await api(`/api/claude/git-status?project=${encodeURIComponent(project.value)}`);
-      if (status.dirty) {
-        publishSummary.textContent = `${status.files.length} offene ${status.files.length === 1 ? 'Datei' : 'Dateien'} werden auf dem aktiven Feature-Branch veröffentlicht.`;
-      } else {
-        publishSummary.textContent = 'Der Arbeitsbaum ist sauber. Bereits vorhandene Branch-Commits werden ebenfalls geprüft.';
-      }
-    } catch (error) {
-      publishSummary.textContent = error.message;
-    }
+  function setSidebarCollapsed(collapsed) {
+    els.app.classList.toggle('sidebar-collapsed', collapsed);
+    els.sidebarToggle.title = collapsed ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen';
+    els.sidebarToggle.setAttribute('aria-label', els.sidebarToggle.title);
+    localStorage.setItem('practioCodeSidebarCollapsed', collapsed ? '1' : '0');
+    requestAnimationFrame(() => applyPreviewWidth(previewWidth || null));
   }
 
-  function closePublishPanel() {
-    if (!publishBusy) publishOverlay.hidden = true;
+  function previewLimits() {
+    const appWidth = els.app.getBoundingClientRect().width;
+    const sidebarWidth = document.querySelector('.sidebar')?.getBoundingClientRect().width || 0;
+    return {
+      min: 300,
+      max: Math.max(300, appWidth - sidebarWidth - 366),
+    };
   }
 
-  async function waitForServerRestart(previousStartedAt) {
-    await sleep(1_600);
-    const deadline = Date.now() + 45_000;
-    while (Date.now() < deadline) {
-      try {
-        const health = await api('/api/claude/server-health');
-        if (health.startedAt !== previousStartedAt) return;
-      } catch {}
-      await sleep(1_000);
-    }
-    throw new Error('Das Code-Tool wurde nicht rechtzeitig neu gestartet.');
+  function applyPreviewWidth(requested) {
+    if (window.innerWidth <= 900) return;
+    const limits = previewLimits();
+    const fallback = Math.round(els.app.getBoundingClientRect().width * .46);
+    previewWidth = Math.min(limits.max, Math.max(limits.min, Number(requested) || fallback));
+    els.app.style.setProperty('--preview-width', `${previewWidth}px`);
+    localStorage.setItem('practioCodePreviewWidth', String(Math.round(previewWidth)));
   }
 
-  async function runPublish() {
-    if (publishBusy) return;
-    const selected = projects.find(entry => entry.id === project.value);
-    if (!selected) return;
-    publishBusy = true;
-    publishConfirm.disabled = true;
-    publishConfirm.textContent = 'Pushe Branch...';
-    publishResult.hidden = true;
-    let activeStep = 'push';
-    try {
-      setPublishStep('push', 'active', 'Änderungen werden committed, auf main rebased und auf den aktiven Feature-Branch gepusht...');
-      const published = await api('/api/claude/publish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: activeChat?.title || 'Update aus Dashboard Preview',
-          project: project.value,
-        }),
-      });
-      const pushDetail = published.noChanges
-        ? `Branch ${published.branch} war bereits aktuell · Commit ${published.commit}`
-        : `${published.pushedCommits} ${published.pushedCommits === 1 ? 'Commit' : 'Commits'} auf ${published.branch} gepusht · ${published.files.length} ${published.files.length === 1 ? 'Datei' : 'Dateien'}`;
-      setPublishStep('push', 'done', pushDetail);
-
-      const resultTitle = document.getElementById('publishResultTitle');
-      const resultText = document.getElementById('publishResultText');
-      const liveLink = document.getElementById('publishLiveLink');
-      resultTitle.textContent = 'Review-Branch bereit';
-      resultText.textContent = published.noChanges
-        ? `Commit ${published.commit} liegt bereits auf ${published.branch}.`
-        : `Commit ${published.commit} wurde auf ${published.branch} gepusht. Als Nächstes: Pull Request, Checks und manuelle Freigabe.`;
-      liveLink.hidden = true;
-      publishResult.hidden = false;
-      publishSummary.textContent = 'Der Feature-Branch ist bereit. Es wurde weder gemergt noch deployt.';
-      publishConfirm.textContent = 'Fertig';
-      publishOpen.textContent = '✓ Branch';
-      setTimeout(() => { publishOpen.textContent = 'Review-Branch'; }, 5_000);
-    } catch (error) {
-      setPublishStep(error.stage || activeStep, 'error', error.message);
-      publishSummary.textContent = error.message;
-      publishConfirm.textContent = 'Erneut versuchen';
-    } finally {
-      publishBusy = false;
-      publishConfirm.disabled = false;
-    }
+  function beginPreviewResize(event) {
+    if (window.innerWidth <= 900) return;
+    event.preventDefault();
+    document.body.classList.add('resizing-preview');
+    els.previewResizer.setPointerCapture?.(event.pointerId);
   }
 
-  const STORAGE_KEY = 'practio-dashboard-v1';
-
-  const GITHUB_REPOS = {
-    'epikur': 'olesorgenfrey/epikur',
-    'epikur-patient': 'olesorgenfrey/epikur-patient',
-    'epikur-dashboard': 'olesorgenfrey/Epikur-dashboard',
-    'epikur-produkt': 'olesorgenfrey/epikur-produkt',
-    'epikur-werbung': 'olesorgenfrey/epikur-werbung',
-  };
-
-  function buildTaskCtx() {
-    const activeRepo = GITHUB_REPOS[project?.value] || '';
-    let s = '[Practio Kontext]\n';
-    s += 'GitHub: olesorgenfrey · Repos: ' + Object.values(GITHUB_REPOS).join(', ') + '\n';
-    if (activeRepo) s += 'Aktuelles Repo: ' + activeRepo + '\n';
-    try {
-      const d = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-      const tasks = d.tasks || [], persons = d.persons || [];
-      if (persons.length) s += 'Personen: ' + persons.map(p => `${p.name} (id:"${p.id}")`).join(', ') + '\n';
-      const open = tasks.filter(t => !t.done);
-      if (open.length) s += 'Offene Tasks:\n' + open.map(t => { const p = persons.find(x => x.id === t.assignee_id); return `• ${p ? p.name : '?'}: "${t.text}" (id:"${t.id}")`; }).join('\n') + '\n';
-      const done = tasks.filter(t => t.done);
-      if (done.length) s += `Erledigte Tasks: ${done.length}\n`;
-    } catch {}
-    return s + '[/Practio Kontext]\n\n';
+  function movePreviewResize(event) {
+    if (!document.body.classList.contains('resizing-preview')) return;
+    const rect = els.app.getBoundingClientRect();
+    applyPreviewWidth(rect.right - event.clientX);
   }
 
-  function execTaskActions(responseText) {
-    const RE = /<practio_action>([\s\S]*?)<\/practio_action>/g;
-    const acts = []; let m;
-    while ((m = RE.exec(responseText)) !== null) { try { acts.push(JSON.parse(m[1])); } catch {} }
-    const clean = responseText.replace(/<practio_action>[\s\S]*?<\/practio_action>/g, '').replace(/\n{3,}/g, '\n\n').trim();
-    if (!acts.length) return { clean, summary: '' };
-    let d; try { d = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return { clean, summary: '' }; }
-    let tasks = d.tasks || []; const persons = d.persons || [];
-    const results = [];
-    for (const a of acts) {
-      if (a.action === 'create_task') {
-        const p = persons.find(x => x.id === a.assignee_id);
-        tasks = [...tasks, { id: Date.now().toString() + (Math.random() * 1000 | 0), title: a.text, text: a.text, meta: '', assignee_id: a.assignee_id, done: false, status: 'backlog', priority: 'medium' }];
-        results.push(`Task erstellt: "${a.text}"${p ? ` → ${p.name}` : ''}`);
-      } else if (a.action === 'toggle_task') {
-        const t = tasks.find(x => x.id === a.id);
-        tasks = tasks.map(x => x.id === a.id ? { ...x, done: a.done, status: a.done ? 'done' : (x.status === 'done' ? 'backlog' : x.status || 'backlog') } : x);
-        results.push(`"${t?.text || a.id}" ${a.done ? 'abgehakt' : 'geöffnet'}`);
-      } else if (a.action === 'delete_task') {
-        const t = tasks.find(x => x.id === a.id);
-        tasks = tasks.filter(x => x.id !== a.id);
-        results.push(`"${t?.text || a.id}" gelöscht`);
-      }
-    }
-    d.tasks = tasks;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
-    return { clean, summary: results.length ? '✓ ' + results.join(' · ') : '' };
+  function endPreviewResize(event) {
+    if (!document.body.classList.contains('resizing-preview')) return;
+    document.body.classList.remove('resizing-preview');
+    els.previewResizer.releasePointerCapture?.(event.pointerId);
   }
 
-  function addMessage(role, text, extraClass = '') {
-    const empty = messages.querySelector('.empty');
-    if (empty) empty.remove();
+  function showLogin() { $('loginModal').classList.add('open'); $('modalUsername').focus(); }
+  function hideLogin() { $('loginModal').classList.remove('open'); }
+
+  function setModalMode(mode) {
+    modalMode = mode;
+    const login = mode === 'login';
+    $('modalTitle').textContent = login ? 'Anmelden' : 'Konto erstellen';
+    $('modalSubtitle').textContent = login
+      ? 'Melde dich an, um deine Threads und verbundenen Accounts zu verwenden.'
+      : 'Neue Konten müssen anschließend von einem Admin freigegeben werden.';
+    $('modalSubmit').textContent = login ? 'Anmelden' : 'Registrieren';
+    $('modalToggle').textContent = login ? 'Noch kein Konto? Registrieren' : 'Bereits registriert? Anmelden';
+    $('modalError').textContent = '';
+  }
+
+  function emptyState() {
+    els.messages.innerHTML = `
+      <div class="empty">
+        <div>
+          <div class="empty-mark">&gt;_</div>
+          <h1>Was möchtest du bauen?</h1>
+          <p>Der Agent arbeitet direkt im ausgewählten Repository. Preview und Testaccount stehen rechts bereit.</p>
+        </div>
+      </div>`;
+  }
+
+  function addMessage(role, text, provider = els.provider.value, extraClass = '') {
+    els.messages.querySelector('.empty')?.remove();
     const row = document.createElement('div');
     row.className = `message ${role}`;
     const bubble = document.createElement('div');
     bubble.className = `bubble ${extraClass}`;
-    bubble.textContent = text;
+    if (role === 'assistant') {
+      const head = document.createElement('div');
+      head.className = 'assistant-head';
+      head.innerHTML = `<span class="assistant-mark">${provider === 'codex' ? 'CX' : 'CL'}</span><span>${providers[provider]?.label || 'Agent'}</span>`;
+      const content = document.createElement('div');
+      content.className = 'assistant-content';
+      content.textContent = text;
+      bubble.append(head, content);
+    } else {
+      bubble.textContent = text;
+    }
     row.appendChild(bubble);
-    messages.appendChild(row);
-    messages.scrollTop = messages.scrollHeight;
+    els.messages.appendChild(row);
+    els.messages.scrollTop = els.messages.scrollHeight;
     return row;
   }
 
-  function toolInputText(name, value) {
-    const data = value || {};
-    if (name === 'Bash') return data.command || JSON.stringify(data, null, 2);
-    if (name === 'Write') return `${data.file_path || data.path || ''}\n\n${data.content || ''}`.trim();
-    if (name === 'Edit') {
-      const path = data.file_path || data.path || '';
-      const before = data.old_string || '';
-      const after = data.new_string || '';
-      return `${path}\n\n--- vorher\n${before}\n+++ nachher\n${after}`.trim();
+  function renderMessages(chat) {
+    els.messages.innerHTML = '';
+    if (!chat?.messages?.length) {
+      emptyState();
+      return;
     }
-    if (name === 'Read') return data.file_path || data.path || JSON.stringify(data, null, 2);
-    return JSON.stringify(data, null, 2);
+    chat.messages.forEach(message => addMessage(message.role, message.content, message.provider || chat.provider || 'claude'));
+  }
+
+  function renderChatList() {
+    els.chatList.innerHTML = '';
+    chats.forEach(chat => {
+      const item = document.createElement('button');
+      item.className = `thread${activeChat?.id === chat.id ? ' active' : ''}`;
+      item.type = 'button';
+      const provider = chat.provider || 'claude';
+      item.innerHTML = `
+        <div class="thread-title"></div>
+        <div class="thread-meta"><span class="provider-dot ${provider}"></span><span>${providers[provider]?.label || provider}</span><span>·</span><span class="thread-date"></span></div>
+        <span class="delete-thread" title="Thread löschen">×</span>`;
+      item.querySelector('.thread-title').textContent = chat.title || 'Neuer Thread';
+      item.querySelector('.thread-date').textContent = new Date(chat.updatedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+      item.addEventListener('click', event => {
+        if (!event.target.classList.contains('delete-thread')) openChat(chat.id);
+      });
+      item.querySelector('.delete-thread').addEventListener('click', async event => {
+        event.stopPropagation();
+        await api(`/api/claude/chats/${chat.id}`, { method: 'DELETE' });
+        await loadChats(activeChat?.id === chat.id ? null : activeChat?.id);
+      });
+      els.chatList.appendChild(item);
+    });
+  }
+
+  function renderModels(selected) {
+    const provider = els.provider.value;
+    const items = providers[provider].models;
+    els.model.innerHTML = '';
+    items.forEach(item => {
+      const option = document.createElement('option');
+      option.value = item.id;
+      option.textContent = item.label;
+      els.model.appendChild(option);
+    });
+    const fallback = provider === 'codex' ? 'gpt-5.5' : 'sonnet';
+    els.model.value = items.some(item => item.id === selected) ? selected : fallback;
+  }
+
+  function setProvider(provider, selectedModel) {
+    els.provider.value = provider;
+    renderModels(selectedModel);
+    updateProviderHeader();
+  }
+
+  function updateProviderHeader() {
+    const provider = els.provider.value;
+    const status = providerStatus[provider] || {};
+    els.statusLight.className = `status-light ${status.loggedIn ? 'online' : 'offline'}`;
+    els.statusText.textContent = status.loggedIn ? `${providers[provider].label} verbunden` : `${providers[provider].label} anmelden`;
+    els.providerLogin.title = status.loggedIn
+      ? `${providers[provider].label}-Account verwalten`
+      : `Mit eigenem ${providers[provider].label}-Account anmelden`;
+    els.send.disabled = busy || !els.input.value.trim() || !status.loggedIn;
+  }
+
+  function renderSettings() {
+    els.secureToggle.checked = settings.secureTty;
+    els.securePill.textContent = settings.secureTty ? 'SecureTTY an' : 'SecureTTY aus';
+    els.securePill.style.color = settings.secureTty ? '#a9d9b8' : '#e6b87a';
+    $('testAccountHelp').textContent = settings.testAccountConfigured
+      ? 'Für jede Epikur-Preview dauerhaft aktiv.'
+      : 'Dauerhaft aktiv, aber Server-Zugangsdaten fehlen noch.';
+    els.testPill.querySelector('.status-light').className = `status-light ${settings.testAccountConfigured ? 'online' : 'offline'}`;
+  }
+
+  function renderProviderSettings(provider) {
+    const status = providerStatus[provider] || {};
+    const state = provider === 'codex' ? els.codexState : els.claudeState;
+    const button = provider === 'codex' ? els.codexConnect : els.claudeConnect;
+    state.textContent = status.loggedIn ? 'Mit deinem persönlichen Account verbunden.' : 'Für diesen Dashboard-Nutzer nicht verbunden.';
+    button.textContent = status.loggedIn ? 'Trennen' : 'Verbinden';
+    button.classList.toggle('connected', status.loggedIn);
+  }
+
+  async function loadSettings() {
+    settings = await api('/api/code/settings');
+    renderSettings();
+  }
+
+  async function loadProviderStatus(provider) {
+    try {
+      providerStatus[provider] = await api(`/api/${provider}/status`);
+    } catch (error) {
+      providerStatus[provider] = { loggedIn: false, error: error.message };
+    }
+    renderProviderSettings(provider);
+    updateProviderHeader();
+    return providerStatus[provider];
+  }
+
+  async function loadAllProviderStatus() {
+    await Promise.all([loadProviderStatus('codex'), loadProviderStatus('claude')]);
+  }
+
+  async function loadCodexModels() {
+    try {
+      const data = await api('/api/codex/models');
+      if (Array.isArray(data.models) && data.models.length) providers.codex.models = data.models;
+      if (els.provider.value === 'codex') renderModels(els.model.value);
+    } catch {}
+  }
+
+  async function connectProvider(provider) {
+    if (providerStatus[provider]?.loggedIn) {
+      await api(`/api/${provider}/logout`, { method: 'POST' });
+      providerStatus[provider] = { loggedIn: false };
+      renderProviderSettings(provider);
+      updateProviderHeader();
+      return;
+    }
+
+    const state = provider === 'codex' ? els.codexState : els.claudeState;
+    const button = provider === 'codex' ? els.codexConnect : els.claudeConnect;
+    button.disabled = true;
+    button.textContent = 'Warte …';
+    state.textContent = 'Anmeldung wird gestartet …';
+    let loginWindow = null;
+
+    if (provider === 'claude') {
+      loginWindow = window.open('/claude-auth', '_blank');
+      if (!loginWindow) {
+        button.disabled = false;
+        els.claudeDevice.classList.add('show');
+        els.claudeDevice.innerHTML = 'Das Login-Fenster wurde blockiert.<br><a href="/claude-auth" target="_blank" rel="noopener" style="color:#9ec0ff">Claude-Login manuell öffnen</a>';
+        renderProviderSettings(provider);
+        state.textContent = 'Öffne den Login über den Link und melde dich mit deinem Claude-Account an.';
+      } else {
+        loginWindow.opener = null;
+        els.claudeDevice.classList.remove('show');
+        state.textContent = 'Claude-Login ist geöffnet. Nach der Anmeldung wird der Status automatisch aktualisiert.';
+      }
+    } else {
+      loginWindow = window.open('about:blank', '_blank');
+      try {
+        const data = await api('/api/codex/login/start', { method: 'POST' });
+        if (data.loggedIn) {
+          if (loginWindow) loginWindow.close();
+          await loadProviderStatus('codex');
+          return;
+        }
+        els.codexDevice.classList.add('show');
+        els.codexDevice.innerHTML = 'Öffne den OpenAI Device Login und gib diesen Code ein:<br><strong></strong><br><a target="_blank" rel="noopener" style="color:#9ec0ff">OpenAI Device Login öffnen</a>';
+        els.codexDevice.querySelector('strong').textContent = data.code;
+        els.codexDevice.querySelector('a').href = data.url;
+        state.textContent = 'OpenAI Device Login ist geöffnet. Gib dort den angezeigten Code ein.';
+        if (loginWindow) loginWindow.location = data.url;
+        else window.open(data.url, '_blank', 'noopener');
+      } catch (error) {
+        if (loginWindow) loginWindow.close();
+        button.disabled = false;
+        renderProviderSettings(provider);
+        throw error;
+      }
+    }
+
+    const deadline = Date.now() + 3 * 60 * 1000;
+    const poll = setInterval(async () => {
+      let status;
+      try {
+        status = await api(`/api/${provider}/status`);
+        providerStatus[provider] = status;
+        updateProviderHeader();
+      } catch {
+        status = { loggedIn: false };
+      }
+      if (status.loggedIn || Date.now() >= deadline) {
+        clearInterval(poll);
+        button.disabled = false;
+        if (status.loggedIn) {
+          if (loginWindow && !loginWindow.closed) loginWindow.close();
+          els.codexDevice.classList.remove('show');
+          els.claudeDevice.classList.remove('show');
+          renderProviderSettings(provider);
+        } else {
+          renderProviderSettings(provider);
+          state.textContent = 'Anmeldung nicht abgeschlossen. Du kannst sie erneut starten.';
+        }
+      }
+    }, 3000);
+  }
+
+  async function loadProjects() {
+    projects = await api('/api/claude/projects');
+    els.project.innerHTML = '';
+    projects.forEach(item => {
+      const option = document.createElement('option');
+      option.value = item.id;
+      option.textContent = item.label;
+      els.project.appendChild(option);
+    });
+  }
+
+  async function loginPreviewTestAccount() {
+    if (!settings.autoTestAccount) return;
+    els.testPill.querySelector('.status-light').className = 'status-light';
+    try {
+      await api('/api/preview/test-login', { method: 'POST' });
+      els.testPill.querySelector('.status-light').className = 'status-light online';
+      els.testPill.title = 'Testaccount ist angemeldet';
+    } catch (error) {
+      els.testPill.querySelector('.status-light').className = 'status-light offline';
+      els.testPill.title = error.message;
+    }
+  }
+
+  async function activateProject(id) {
+    const selected = projects.find(item => item.id === id);
+    if (!selected) return;
+    $('publish').hidden = !selected.canPublish;
+    els.input.placeholder = selected.hasPreview
+      ? `Beschreibe, was direkt in der ${selected.label}-Preview geändert werden soll …`
+      : `Beschreibe, was im ${selected.label}-Repository geändert werden soll …`;
+    els.project.disabled = true;
+    els.previewLabel.textContent = `${selected.label} wird vorbereitet …`;
+    try {
+      await api(`/api/claude/projects/${id}/activate`, { method: 'POST' });
+      activatedProject = id;
+      if (!selected.hasPreview) {
+        els.preview.removeAttribute('src');
+        els.preview.srcdoc = `<!doctype html><html lang="de"><style>html,body{height:100%;margin:0}body{display:grid;place-items:center;background:#111;color:#777;font:14px system-ui;text-align:center}.box{max-width:440px;padding:30px}h2{color:#ddd;font-size:18px}</style><body><div class="box"><h2>${selected.label}</h2><p>Dieses Repository hat keine Web-Preview. Der Agent kann es trotzdem vollständig bearbeiten.</p></div></body></html>`;
+        els.openPreview.hidden = true;
+        $('reloadPreview').hidden = true;
+        els.previewLabel.textContent = `${selected.label} · Repository`;
+        return;
+      }
+      if (selected.id === 'epikur') await loginPreviewTestAccount();
+      const separator = selected.previewUrl.includes('?') ? '&' : '?';
+      els.preview.removeAttribute('srcdoc');
+      els.preview.src = `${selected.previewUrl}${separator}dashboardPreview=${Date.now()}&testAccount=1`;
+      els.openPreview.href = selected.previewUrl;
+      els.openPreview.hidden = false;
+      $('reloadPreview').hidden = false;
+      els.previewLabel.textContent = selected.id === 'epikur'
+        ? `${selected.label} · Testaccount aktiv`
+        : `${selected.label} · Preview bereit`;
+    } catch (error) {
+      els.previewLabel.textContent = error.message;
+    } finally {
+      els.project.disabled = false;
+    }
+  }
+
+  async function loadChats(preferredId) {
+    chats = await api('/api/claude/chats');
+    renderChatList();
+    const next = preferredId || chats[0]?.id;
+    if (next) await openChat(next);
+    else await createChat();
+  }
+
+  async function createChat() {
+    const chat = await api('/api/claude/chats', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: els.provider.value,
+        model: els.model.value,
+        effort: els.effort.value,
+        project: els.project.value || 'epikur',
+      }),
+    });
+    chats.unshift(chat);
+    await openChat(chat.id);
+  }
+
+  function renderUsage(data) {
+    if (!data) {
+      els.usage.textContent = 'Enter senden · Shift+Enter Zeilenumbruch · Threads werden pro Nutzer gespeichert';
+      return;
+    }
+    const context = data.contextPercent == null ? '' : ` · Kontext ${data.contextPercent}%`;
+    const inputTokens = data.inputTokens ?? data.input_tokens ?? 0;
+    const outputTokens = data.outputTokens ?? data.output_tokens ?? 0;
+    els.usage.textContent = `${inputTokens.toLocaleString('de-DE')} rein · ${outputTokens.toLocaleString('de-DE')} raus${context}`;
+  }
+
+  async function openChat(id) {
+    activeChat = await api(`/api/claude/chats/${id}`);
+    const chatProvider = activeChat.provider || 'claude';
+    setProvider(chatProvider, activeChat.model);
+    els.effort.value = activeChat.effort || 'medium';
+    const projectId = activeChat.project || 'epikur';
+    els.project.value = projectId;
+    if (activatedProject !== projectId) await activateProject(projectId);
+    renderMessages(activeChat);
+    renderUsage(activeChat.usage);
+    renderChatList();
+    els.input.focus();
+  }
+
+  function buildTaskContext() {
+    const repos = {
+      epikur: 'olesorgenfrey/epikur',
+      'epikur-patient': 'olesorgenfrey/epikur-patient',
+      'epikur-dashboard': 'olesorgenfrey/Epikur-dashboard',
+      'epikur-produkt': 'olesorgenfrey/epikur-produkt',
+      'epikur-werbung': 'olesorgenfrey/epikur-werbung',
+    };
+    let context = '[Practio Kontext]\n';
+    if (repos[els.project.value]) context += `Aktuelles Repo: ${repos[els.project.value]}\n`;
+    try {
+      const data = JSON.parse(localStorage.getItem('practio-dashboard-v1') || '{}');
+      const tasks = data.tasks || [];
+      const persons = data.persons || [];
+      const open = tasks.filter(task => !task.done);
+      if (persons.length) context += `Personen: ${persons.map(person => `${person.name} (id:"${person.id}")`).join(', ')}\n`;
+      if (open.length) context += `Offene Tasks:\n${open.map(task => {
+        const person = persons.find(item => item.id === task.assignee_id);
+        return `- ${person?.name || '?'}: "${task.text}" (id:"${task.id}")`;
+      }).join('\n')}\n`;
+    } catch {}
+    return `${context}[/Practio Kontext]`;
   }
 
   function createStreamRenderer(row) {
-    const bubble = row.querySelector('.bubble');
-    bubble.textContent = '';
-    const status = document.createElement('div');
-    status.className = 'stream-status';
-    status.textContent = 'Claude arbeitet...';
-    bubble.appendChild(status);
+    const content = row.querySelector('.assistant-content');
+    content.textContent = 'Arbeitet …';
+    let text = '';
     const tools = new Map();
-    let currentText = null;
-    let hasText = false;
-
-    const scroll = () => { messages.scrollTop = messages.scrollHeight; };
-    const removeStatus = () => {
-      if (status.isConnected) status.remove();
-    };
-
-    return {
-      text(value) {
-        if (!value) return;
-        removeStatus();
-        hasText = true;
-        if (!currentText) {
-          currentText = document.createElement('div');
-          currentText.className = 'stream-text';
-          bubble.appendChild(currentText);
-        }
-        currentText.textContent += value;
-        scroll();
-      },
-      status(value) {
-        if (!hasText && status.isConnected) status.textContent = value || 'Claude arbeitet...';
-        scroll();
-      },
-      tool(event) {
-        removeStatus();
-        currentText = null;
+    return event => {
+      if (event.type === 'text') {
+        text += event.text || '';
+        content.textContent = text;
+      } else if (event.type === 'status' && !text) {
+        content.textContent = event.message || 'Arbeitet …';
+      } else if (event.type === 'tool_use') {
+        if (!text) content.textContent = '';
         const card = document.createElement('div');
-        card.className = 'tool-call';
-        const head = document.createElement('div');
-        head.className = 'tool-head';
-        const title = document.createElement('span');
-        title.textContent = event.name === 'Bash' ? '$ Befehl' : event.name;
-        const state = document.createElement('span');
-        state.className = 'tool-state';
-        state.textContent = 'läuft...';
-        head.append(title, state);
-        const inputBlock = document.createElement('pre');
-        inputBlock.className = 'tool-input';
-        inputBlock.textContent = toolInputText(event.name, event.input);
-        card.append(head, inputBlock);
-        bubble.appendChild(card);
-        tools.set(event.id, { card, state });
-        scroll();
-      },
-      toolResult(event) {
-        currentText = null;
-        let tool = tools.get(event.id);
-        if (!tool) {
-          this.tool({ id: event.id, name: 'Tool', input: {} });
-          tool = tools.get(event.id);
+        card.className = 'tool-card';
+        card.innerHTML = `<div class="tool-head"><span></span><span>läuft</span></div><pre class="tool-body"></pre>`;
+        card.querySelector('.tool-head span').textContent = event.name || 'Tool';
+        card.querySelector('.tool-body').textContent = JSON.stringify(event.input || {}, null, 2);
+        content.appendChild(card);
+        tools.set(event.id, card);
+      } else if (event.type === 'tool_result') {
+        const card = tools.get(event.id);
+        if (card) {
+          card.querySelector('.tool-head span:last-child').textContent = event.isError ? 'Fehler' : 'fertig';
+          const output = document.createElement('pre');
+          output.className = `tool-body${event.isError ? ' error-text' : ''}`;
+          output.textContent = event.content || '(keine Ausgabe)';
+          card.appendChild(output);
         }
-        tool.state.textContent = event.isError ? 'Fehler' : 'fertig';
-        const output = document.createElement('pre');
-        output.className = `tool-output${event.isError ? ' error' : ''}`;
-        output.textContent = event.content || '(keine Ausgabe)';
-        tool.card.appendChild(output);
-        scroll();
-      },
-      done(responseText) {
-        removeStatus();
-        if (!hasText && responseText) this.text(responseText);
-        const { clean, summary } = execTaskActions(responseText || '');
-        if ((responseText || '').includes('<practio_action>')) {
-          bubble.querySelectorAll('.stream-text').forEach(node => node.remove());
-          if (clean) {
-            const finalText = document.createElement('div');
-            finalText.className = 'stream-text';
-            finalText.textContent = clean;
-            bubble.appendChild(finalText);
-          }
-        }
-        if (summary) {
-          const actionSummary = document.createElement('div');
-          actionSummary.className = 'stream-text';
-          actionSummary.textContent = summary;
-          bubble.appendChild(actionSummary);
-        }
-        scroll();
-      },
-      error(event) {
-        removeStatus();
-        currentText = null;
-        const error = document.createElement('div');
-        error.className = 'stream-error';
-        error.textContent = `Fehler: ${event.message || 'Claude konnte die Anfrage nicht ausführen.'}`;
-        bubble.appendChild(error);
-        if (event.loginUrl) {
-          const login = document.createElement('a');
-          login.className = 'stream-login';
-          login.href = event.loginUrl;
-          login.target = '_blank';
-          login.rel = 'noopener';
-          login.textContent = 'Claude neu anmelden';
-          bubble.appendChild(login);
-        }
-        scroll();
-      },
+      } else if (event.type === 'error') {
+        content.classList.add('error-text');
+        content.textContent = event.message || 'Anfrage fehlgeschlagen.';
+      } else if (event.type === 'done') {
+        activeChat = event.chat || activeChat;
+        renderUsage(event.usage);
+        if (!text && event.response) content.textContent = event.response;
+      }
+      els.messages.scrollTop = els.messages.scrollHeight;
     };
   }
 
@@ -603,362 +1286,375 @@
       body: JSON.stringify(payload),
     });
     if (!response.ok) {
-      let message = 'Anfrage fehlgeschlagen';
-      try {
-        const data = await response.json();
-        message = data.error || message;
-      } catch {}
+      let message = 'Anfrage fehlgeschlagen.';
+      try { message = (await response.json()).error || message; } catch {}
       throw new Error(message);
     }
-    if (!response.body) throw new Error('Der Browser unterstützt keine Streaming-Antworten.');
-
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
     while (true) {
       const { value, done } = await reader.read();
       buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
-      const events = buffer.split(/\r?\n\r?\n/);
-      buffer = events.pop() || '';
-      for (const block of events) {
-        const data = block.split(/\r?\n/)
-          .filter(line => line.startsWith('data:'))
-          .map(line => line.slice(5).trimStart())
-          .join('\n');
-        if (!data) continue;
-        onEvent(JSON.parse(data));
+      const blocks = buffer.split(/\r?\n\r?\n/);
+      buffer = blocks.pop() || '';
+      for (const block of blocks) {
+        const data = block.split(/\r?\n/).filter(line => line.startsWith('data:')).map(line => line.slice(5).trimStart()).join('\n');
+        if (data) onEvent(JSON.parse(data));
       }
       if (done) break;
     }
   }
 
-  function renderMessages(chat) {
-    messages.innerHTML = '';
-    if (!chat.messages.length) messages.appendChild(emptyTemplate.cloneNode(true));
-    chat.messages.forEach(entry => addMessage(entry.role, entry.content));
-    messages.scrollTop = messages.scrollHeight;
-  }
-
-  function renderChatList() {
-    chatList.innerHTML = '';
-    chats.forEach(chat => {
-      const item = document.createElement('div');
-      item.setAttribute('role', 'button');
-      item.tabIndex = 0;
-      item.className = `chat-item ${activeChat?.id === chat.id ? 'active' : ''}`;
-      item.innerHTML = `<div class="chat-title"></div><div class="chat-date"></div><button class="delete-chat" title="Löschen">×</button>`;
-      item.querySelector('.chat-title').textContent = chat.title;
-      item.querySelector('.chat-date').textContent = new Date(chat.updatedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
-      item.addEventListener('click', event => {
-        if (!event.target.classList.contains('delete-chat')) openChat(chat.id);
-      });
-      item.addEventListener('keydown', event => {
-        if ((event.key === 'Enter' || event.key === ' ') && !event.target.classList.contains('delete-chat')) openChat(chat.id);
-      });
-      item.querySelector('.delete-chat').addEventListener('click', async event => {
-        event.stopPropagation();
-        await api(`/api/claude/chats/${chat.id}`, { method: 'DELETE' });
-        await loadChats(activeChat?.id === chat.id ? null : activeChat?.id);
-      });
-      chatList.appendChild(item);
-    });
-  }
-
-  async function loadChats(preferredId) {
-    chats = await api('/api/claude/chats');
-    renderChatList();
-    const nextId = preferredId || chats[0]?.id;
-    if (nextId) await openChat(nextId);
-    else await createChat();
-  }
-
-  async function createChat() {
-    const chat = await api('/api/claude/chats', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: model.value, effort: effort.value, project: project.value }),
-    });
-    chats.unshift(chat);
-    await openChat(chat.id);
-  }
-
-  async function openChat(id) {
-    activeChat = await api(`/api/claude/chats/${id}`);
-    model.value = activeChat.model || 'sonnet';
-    effort.value = activeChat.effort || 'medium';
-    if (activatedProject !== (activeChat.project || 'epikur')) {
-      project.value = activeChat.project || 'epikur';
-      await activateProject(project.value);
-    }
-    renderUsage(activeChat.usage);
-    renderMessages(activeChat);
-    renderChatList();
-    input.focus();
-  }
-
   async function submitMessage() {
-    const message = input.value.trim();
+    const message = els.input.value.trim();
+    const provider = els.provider.value;
     if (!message || busy || !activeChat) return;
+    if (!providerStatus[provider]?.loggedIn) {
+      els.settingsBackdrop.classList.add('open');
+      return;
+    }
     busy = true;
-    input.value = '';
-    input.style.height = 'auto';
-    send.disabled = true;
-    addMessage('user', message);
-    const pending = addMessage('assistant', 'Claude arbeitet...', 'typing');
-    const renderer = createStreamRenderer(pending);
-    const ctx = buildTaskCtx();
-    let terminalEvent = null;
+    els.input.value = '';
+    els.input.style.height = 'auto';
+    updateProviderHeader();
+    addMessage('user', message, provider);
+    const pending = addMessage('assistant', 'Arbeitet …', provider, 'typing');
+    const payload = {
+      conversationId: activeChat.id,
+      message,
+      context: buildTaskContext(),
+      model: els.model.value,
+      effort: els.effort.value,
+    };
     try {
-      await streamClaude({
-        message,
-        context: ctx,
-        conversationId: activeChat.id,
-        model: model.value,
-        effort: effort.value,
-      }, event => {
-        if (event.type === 'text') renderer.text(event.text);
-        else if (event.type === 'status') renderer.status(event.message);
-        else if (event.type === 'chat_title') {
-          activeChat = { ...activeChat, title: event.title, updatedAt: event.updatedAt };
-          const listedChat = chats.find(chat => chat.id === activeChat.id);
-          if (listedChat) Object.assign(listedChat, { title: event.title, updatedAt: event.updatedAt });
-          renderChatList();
-        }
-        else if (event.type === 'tool_use') renderer.tool(event);
-        else if (event.type === 'tool_result') renderer.toolResult(event);
-        else if (event.type === 'error') terminalEvent = event;
-        else if (event.type === 'done') {
-          terminalEvent = event;
-          renderer.done(event.response);
-          activeChat = event.chat;
-          renderUsage(event.usage);
-        }
-      });
-      pending.querySelector('.bubble').classList.remove('typing');
-      if (!terminalEvent) throw new Error('Die Claude-Verbindung wurde unerwartet beendet.');
-      if (terminalEvent.type === 'error') renderer.error(terminalEvent);
+      if (provider === 'claude') {
+        const render = createStreamRenderer(pending);
+        await streamClaude(payload, render);
+      } else {
+        const data = await api('/api/codex/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        pending.querySelector('.assistant-content').textContent = data.response || 'Keine Antwort.';
+        activeChat = data.chat || activeChat;
+        renderUsage(data.usage);
+      }
       chats = await api('/api/claude/chats');
       renderChatList();
     } catch (error) {
-      pending.querySelector('.bubble').classList.remove('typing');
-      renderer.error({ message: error.message });
+      const content = pending.querySelector('.assistant-content');
+      content.classList.add('error-text');
+      content.textContent = error.message;
+      if (error.status === 401) await loadProviderStatus(provider);
     } finally {
       busy = false;
-      send.disabled = false;
-      input.focus();
-      messages.scrollTop = messages.scrollHeight;
+      updateProviderHeader();
+      els.input.focus();
     }
   }
 
-  async function checkStatus() {
-    try {
-      const data = await api('/api/claude/status');
-      const statusText = document.getElementById('statusText');
-      statusText.textContent = '';
-      if (data.loggedIn) {
-        document.getElementById('statusDot').classList.add('online');
-        statusText.textContent = `${data.subscriptionType || 'Claude.ai'} · Restkontingent wird von Claude nicht bereitgestellt`;
-      } else {
-        document.getElementById('statusDot').classList.remove('online');
-        statusText.append(document.createTextNode(data.error || 'Claude ist nicht angemeldet.'));
-        if (data.loginUrl) {
-          statusText.append(document.createTextNode(' · '));
-          const link = document.createElement('a');
-          link.href = data.loginUrl;
-          link.target = '_blank';
-          link.rel = 'noopener';
-          link.textContent = 'Jetzt anmelden';
-          statusText.appendChild(link);
+  function closePublishDialog() {
+    if (publishing) return;
+    els.publishModal.classList.remove('open');
+    publishRetryProject = null;
+    $('publishCancel').disabled = false;
+    $('publishClose').disabled = false;
+    els.publishConfirm.disabled = false;
+    els.publishConfirm.textContent = 'Nach main pushen';
+  }
+
+  async function waitForDeploy(projectId, requestedAt) {
+    const deadline = Date.now() + (15 * 60 * 1000);
+    let observedCurrentDeploy = false;
+
+    while (Date.now() < deadline) {
+      const statuses = await api('/api/deploy/status');
+      const status = statuses?.[projectId];
+      if (status) {
+        const startedAt = Date.parse(status.startedAt || '') || 0;
+        const finishedAt = Date.parse(status.finishedAt || '') || 0;
+        const belongsToPublish = observedCurrentDeploy
+          || status.status === 'running'
+          || startedAt >= requestedAt - 3000
+          || finishedAt >= requestedAt - 3000;
+
+        if (belongsToPublish) {
+          observedCurrentDeploy = true;
+          if (status.status === 'running') {
+            els.publishConfirm.textContent = 'Autodeploy läuft …';
+            els.publishNote.textContent = status.commit
+              ? `Commit ${status.commit} wurde gepusht und wird gerade veröffentlicht.`
+              : 'Der Commit wurde gepusht und wird gerade veröffentlicht.';
+          } else if (status.status === 'success') {
+            return status;
+          } else if (status.status === 'failed') {
+            throw new Error(status.error || 'Autodeploy fehlgeschlagen.');
+          }
         }
       }
-    } catch (error) {
-      document.getElementById('statusText').textContent = error.message;
+      await new Promise(resolve => setTimeout(resolve, 1500));
     }
+
+    throw new Error('Der Autodeploy hat innerhalb von 15 Minuten keinen Abschluss gemeldet.');
   }
 
-  function renderUsage(data) {
-    if (!data) {
-      usage.textContent = 'Automatische Kontextkomprimierung aktiv · Noch keine Token-Daten';
-      return;
-    }
-    const context = data.contextPercent == null ? 'unbekannt' : `${data.contextPercent}%`;
-    usage.textContent = `Kontext ${context} · ${data.inputTokens.toLocaleString('de-DE')} rein · ${data.outputTokens.toLocaleString('de-DE')} raus · Auto-Kompakt aktiv`;
-  }
-
-  async function loadProjects() {
-    projects = await api('/api/claude/projects');
-    project.innerHTML = '';
-    projects.forEach(entry => {
-      const option = document.createElement('option');
-      option.value = entry.id;
-      option.textContent = entry.label;
-      project.appendChild(option);
-    });
-  }
-
-  async function activateProject(id) {
-    const selected = projects.find(entry => entry.id === id);
-    if (!selected) return;
-    clearInterval(previewRetryTimer);
-    previewRetryTimer = null;
-    project.disabled = true;
-    previewLabel.textContent = selected.hasPreview ? `${selected.label} startet...` : `${selected.label} wird geöffnet...`;
+  async function openPublishDialog() {
+    const selected = projects.find(item => item.id === els.project.value);
+    if (!selected?.canPublish) return;
+    publishRetryProject = null;
+    els.publishModal.classList.add('open');
+    $('publishTarget').textContent = `${selected.label} → main`;
+    els.publishMessage.value = activeChat?.title || `Update ${selected.label}`;
+    els.publishFiles.textContent = 'Git-Status wird geladen …';
+    els.publishNote.textContent = '';
+    els.publishError.textContent = '';
+    els.publishConfirm.textContent = 'Nach main pushen';
+    $('publishCancel').disabled = false;
+    $('publishClose').disabled = false;
+    els.publishConfirm.disabled = true;
     try {
-      await api(`/api/claude/projects/${id}/activate`, { method: 'POST' });
-      activatedProject = id;
-      if (selected.hasPreview) {
-        preview.removeAttribute('srcdoc');
-        const separator = selected.previewUrl.includes('?') ? '&' : '?';
-        preview.src = `${selected.previewUrl}${separator}dashboardPreview=${Date.now()}`;
-        openPreview.href = selected.previewUrl;
-        openPreview.hidden = false;
-        document.getElementById('reloadPreview').hidden = false;
-        previewLabel.textContent = `${selected.label} kompiliert...`;
-        startPreviewRetry(selected.previewUrl, selected.label);
-      } else {
-        preview.removeAttribute('src');
-        preview.srcdoc = `<!doctype html><html lang="de"><style>html,body{height:100%;margin:0}body{display:grid;place-items:center;background:#080b10;color:#7d8590;font:16px system-ui;text-align:center}.box{max-width:520px;padding:30px}h2{color:#e6edf3}</style><body><div class="box"><h2>${selected.label}</h2><p>Dieses Repository hat keine eigene Web-Preview. Du kannst es vollständig im Claude-Chat bearbeiten und anschließend über Publish veröffentlichen.</p></div></body></html>`;
-        openPreview.hidden = true;
-        document.getElementById('reloadPreview').hidden = true;
-        previewLabel.textContent = `${selected.label} · Code-Repository ohne Web-Preview`;
-      }
+      const status = await api(`/api/claude/git-status?project=${encodeURIComponent(selected.id)}`);
+      const lines = status.publishable.length
+        ? status.publishable.map(file => `• ${file}`)
+        : ['Keine neuen Dateien im Preview-Workspace.'];
+      if (status.ahead > 0) lines.push(`\n${status.ahead} lokaler Commit${status.ahead === 1 ? '' : 's'} wird ebenfalls veröffentlicht.`);
+      els.publishFiles.textContent = lines.join('\n');
+      els.publishNote.textContent = status.excluded.length
+        ? `Nicht veröffentlicht: ${status.excluded.join(', ')}`
+        : `Vor dem Push wird auf den aktuellen Stand von main rebased${status.behind ? ` (${status.behind} neue Remote-Commits)` : ''}.`;
+      els.publishConfirm.disabled = status.publishable.length === 0 && status.ahead === 0;
     } catch (error) {
-      previewLabel.textContent = error.message;
-    } finally {
-      project.disabled = false;
+      els.publishFiles.textContent = 'Status nicht verfügbar.';
+      els.publishError.textContent = error.message;
     }
   }
 
-  form.addEventListener('submit', event => { event.preventDefault(); submitMessage(); });
-  input.addEventListener('keydown', event => {
-    if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); submitMessage(); }
+  async function publishMain() {
+    const button = $('publish');
+    const original = 'Publish';
+    let succeeded = false;
+    let publishedResult = null;
+    publishing = true;
+    els.publishConfirm.disabled = true;
+    $('publishCancel').disabled = true;
+    $('publishClose').disabled = true;
+    els.publishError.textContent = '';
+    try {
+      if (publishRetryProject) {
+        els.publishConfirm.textContent = 'Deploy wird erneut gestartet …';
+        await api('/api/claude/deploy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project: publishRetryProject }),
+        });
+        publishRetryProject = null;
+        button.textContent = '✓ Live';
+        els.publishConfirm.textContent = 'Jetzt live';
+        els.publishNote.textContent = 'Der bereits gepushte Commit wurde erfolgreich veröffentlicht.';
+        succeeded = true;
+        setTimeout(() => {
+          closePublishDialog();
+          button.textContent = original;
+        }, 2200);
+        return;
+      }
+
+      const requestedAt = Date.now();
+      els.publishConfirm.textContent = 'Pushe nach main …';
+      publishedResult = await api('/api/claude/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project: els.project.value,
+          message: els.publishMessage.value.trim() || 'Update aus Practio Code',
+        }),
+      });
+      if (publishedResult.noChanges) {
+        button.textContent = 'Main aktuell';
+        els.publishConfirm.textContent = 'Keine Änderungen';
+        els.publishNote.textContent = 'Main enthält bereits alle Änderungen.';
+      } else {
+        await waitForDeploy(publishedResult.project, requestedAt);
+        button.textContent = '✓ Live';
+        els.publishConfirm.textContent = 'Jetzt live';
+        els.publishNote.textContent = `Commit ${publishedResult.commit} wurde gepusht und ist jetzt live.`;
+      }
+      succeeded = true;
+      setTimeout(() => {
+        closePublishDialog();
+        button.textContent = original;
+      }, 2200);
+      return;
+    } catch (error) {
+      if (publishedResult && !publishedResult.noChanges) {
+        publishRetryProject = publishedResult.project;
+        els.publishError.textContent = `Commit ${publishedResult.commit} wurde gepusht, aber der Deploy ist fehlgeschlagen: ${error.message}`;
+        els.publishConfirm.textContent = 'Deploy erneut starten';
+      } else {
+        els.publishError.textContent = error.message;
+        els.publishConfirm.textContent = 'Erneut versuchen';
+      }
+    } finally {
+      publishing = false;
+      if (!succeeded) {
+        els.publishConfirm.disabled = false;
+        $('publishCancel').disabled = false;
+        $('publishClose').disabled = false;
+      }
+    }
+  }
+
+  els.form.addEventListener('submit', event => { event.preventDefault(); submitMessage(); });
+  els.input.addEventListener('keydown', event => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      submitMessage();
+    }
   });
-  input.addEventListener('input', () => {
-    input.style.height = 'auto';
-    input.style.height = `${Math.min(input.scrollHeight, 145)}px`;
+  els.input.addEventListener('input', () => {
+    els.input.style.height = 'auto';
+    els.input.style.height = `${Math.min(els.input.scrollHeight, 170)}px`;
+    updateProviderHeader();
   });
-  document.getElementById('newChat').addEventListener('click', createChat);
-  document.getElementById('historyToggle').addEventListener('click', () => {
-    document.getElementById('chatPane').classList.toggle('history-collapsed');
+  els.provider.addEventListener('change', () => {
+    sessionStorage.setItem('practioCodeProvider', els.provider.value);
+    renderModels();
+    updateProviderHeader();
+    if (activeChat && activeChat.provider !== els.provider.value) createChat();
   });
-  project.addEventListener('change', async () => {
-    await activateProject(project.value);
+  els.project.addEventListener('change', async () => {
+    await activateProject(els.project.value);
     await createChat();
   });
-  document.getElementById('reloadPreview').addEventListener('click', () => {
-    preview.src = preview.src;
+  $('newChat').addEventListener('click', createChat);
+  els.sidebarToggle.addEventListener('click', () => {
+    setSidebarCollapsed(!els.app.classList.contains('sidebar-collapsed'));
   });
-  publishOpen.addEventListener('click', openPublishPanel);
-  publishClose.addEventListener('click', closePublishPanel);
-  publishConfirm.addEventListener('click', () => {
-    if (publishConfirm.textContent === 'Fertig') closePublishPanel();
-    else runPublish();
+  els.previewResizer.addEventListener('pointerdown', beginPreviewResize);
+  els.previewResizer.addEventListener('pointermove', movePreviewResize);
+  els.previewResizer.addEventListener('pointerup', endPreviewResize);
+  els.previewResizer.addEventListener('pointercancel', endPreviewResize);
+  els.previewResizer.addEventListener('dblclick', () => {
+    previewWidth = 0;
+    applyPreviewWidth(null);
   });
-  publishOverlay.addEventListener('click', event => {
-    if (event.target === publishOverlay) closePublishPanel();
+  els.previewResizer.tabIndex = 0;
+  els.previewResizer.addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+    event.preventDefault();
+    applyPreviewWidth((previewWidth || els.preview.getBoundingClientRect().width) + (event.key === 'ArrowLeft' ? 24 : -24));
+  });
+  window.addEventListener('resize', () => applyPreviewWidth(previewWidth || null));
+  $('reloadPreview').addEventListener('click', async () => {
+    if (els.project.value === 'epikur') await loginPreviewTestAccount();
+    els.preview.src = els.preview.src;
+  });
+  $('publish').addEventListener('click', openPublishDialog);
+  $('publishConfirm').addEventListener('click', publishMain);
+  $('publishCancel').addEventListener('click', closePublishDialog);
+  $('publishClose').addEventListener('click', closePublishDialog);
+  els.publishModal.addEventListener('click', event => {
+    if (event.target === els.publishModal) closePublishDialog();
   });
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && !publishOverlay.hidden) closePublishPanel();
+    if (event.key === 'Escape' && els.publishModal.classList.contains('open')) closePublishDialog();
   });
-
-  // ─── User-System ────────────────────────────────────────────────────────────
-  const loginModal = document.getElementById('loginModal');
-  const modalTitle = document.getElementById('modalTitle');
-  const modalSubtitle = document.getElementById('modalSubtitle');
-  const modalUsername = document.getElementById('modalUsername');
-  const modalPassword = document.getElementById('modalPassword');
-  const modalSubmit = document.getElementById('modalSubmit');
-  const modalToggle = document.getElementById('modalToggle');
-  const modalError = document.getElementById('modalError');
-  const userBadge = document.getElementById('userBadge');
-  const userBadgeName = document.getElementById('userBadgeName');
-  let modalMode = 'login';
-
-  function showModal() { loginModal.classList.remove('hidden'); modalUsername.focus(); }
-  function hideModal() { loginModal.classList.add('hidden'); }
-  function setModalMode(mode) {
-    modalMode = mode;
-    if (mode === 'login') {
-      modalTitle.textContent = 'Anmelden';
-      modalSubtitle.textContent = 'Melde dich an um deine Chats und den Verlauf zu sehen.';
-      modalSubmit.textContent = 'Anmelden';
-      modalToggle.textContent = 'Noch kein Konto? Registrieren';
-    } else {
-      modalTitle.textContent = 'Registrieren';
-      modalSubtitle.textContent = 'Erstelle ein Konto um deine Chats zu speichern.';
-      modalSubmit.textContent = 'Konto erstellen';
-      modalToggle.textContent = 'Bereits registriert? Anmelden';
+  $('settingsOpen').addEventListener('click', () => els.settingsBackdrop.classList.add('open'));
+  els.providerLogin.addEventListener('click', async () => {
+    const provider = els.provider.value;
+    els.settingsBackdrop.classList.add('open');
+    if (!providerStatus[provider]?.loggedIn) {
+      connectProvider(provider).catch(error => {
+        const state = provider === 'codex' ? els.codexState : els.claudeState;
+        state.textContent = error.message;
+      });
     }
-    modalError.style.display = 'none';
-  }
-
-  function setUser(username) {
-    userBadgeName.textContent = username;
-    userBadge.style.display = 'flex';
-  }
-
-  modalToggle.addEventListener('click', () => setModalMode(modalMode === 'login' ? 'register' : 'login'));
-
-  modalSubmit.addEventListener('click', async () => {
-    const username = modalUsername.value.trim();
-    const password = modalPassword.value;
-    if (!username || !password) { modalError.textContent = 'Bitte beide Felder ausfüllen.'; modalError.style.display = 'block'; return; }
-    modalSubmit.disabled = true;
-    modalError.style.display = 'none';
+  });
+  $('settingsClose').addEventListener('click', () => els.settingsBackdrop.classList.remove('open'));
+  els.settingsBackdrop.addEventListener('click', event => {
+    if (event.target === els.settingsBackdrop) els.settingsBackdrop.classList.remove('open');
+  });
+  els.secureToggle.addEventListener('change', async () => {
+    els.secureToggle.disabled = true;
     try {
-      const endpoint = modalMode === 'login' ? '/api/users/login' : '/api/users/register';
-      const data = await api(endpoint, {
+      settings = await api('/api/code/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secureTty: els.secureToggle.checked }),
+      });
+      renderSettings();
+    } catch {
+      els.secureToggle.checked = settings.secureTty;
+    } finally {
+      els.secureToggle.disabled = false;
+    }
+  });
+  els.codexConnect.addEventListener('click', () => connectProvider('codex').catch(error => { els.codexState.textContent = error.message; }));
+  els.claudeConnect.addEventListener('click', () => connectProvider('claude').catch(error => { els.claudeState.textContent = error.message; }));
+  $('logout').addEventListener('click', async () => {
+    await api('/api/users/logout', { method: 'POST' });
+    els.settingsBackdrop.classList.remove('open');
+    showLogin();
+  });
+  $('modalToggle').addEventListener('click', () => setModalMode(modalMode === 'login' ? 'register' : 'login'));
+  $('modalSubmit').addEventListener('click', async () => {
+    const username = $('modalUsername').value.trim();
+    const password = $('modalPassword').value;
+    if (!username || !password) {
+      $('modalError').textContent = 'Bitte beide Felder ausfüllen.';
+      return;
+    }
+    $('modalSubmit').disabled = true;
+    try {
+      const data = await api(modalMode === 'login' ? '/api/users/login' : '/api/users/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
       if (data.pending) {
         setModalMode('login');
-        modalError.textContent = data.message || 'Account erstellt. Der Admin muss dich erst freischalten — danach kannst du dich anmelden.';
-        modalError.style.display = 'block';
+        $('modalError').textContent = data.message;
         return;
       }
-      setUser(data.username);
-      hideModal();
-      await loadChats();
-      if (!activatedProject) await activateProject(project.value || 'epikur');
+      setUser({ username: data.username });
+      hideLogin();
+      await initializeWorkspace();
     } catch (error) {
-      modalError.textContent = error.message;
-      modalError.style.display = 'block';
+      $('modalError').textContent = error.message;
     } finally {
-      modalSubmit.disabled = false;
+      $('modalSubmit').disabled = false;
     }
   });
-
-  [modalUsername, modalPassword].forEach(el => el.addEventListener('keydown', e => {
-    if (e.key === 'Enter') modalSubmit.click();
+  [$('modalUsername'), $('modalPassword')].forEach(input => input.addEventListener('keydown', event => {
+    if (event.key === 'Enter') $('modalSubmit').click();
   }));
 
-  document.getElementById('userLogout').addEventListener('click', async () => {
-    await api('/api/users/logout', { method: 'POST' });
-    userBadge.style.display = 'none';
-    showModal();
-  });
+  async function initializeWorkspace() {
+    await Promise.all([loadSettings(), loadProjects(), loadAllProviderStatus()]);
+    setProvider(sessionStorage.getItem('practioCodeProvider') || 'codex');
+    setSidebarCollapsed(localStorage.getItem('practioCodeSidebarCollapsed') === '1');
+    applyPreviewWidth(previewWidth || null);
+    await loadCodexModels();
+    await loadChats();
+  }
 
   (async () => {
-    await Promise.all([checkStatus(), loadProjects()]);
-    const me = await api('/api/users/me');
-    if (me.loggedIn) {
-      setUser(me.username);
-      await loadChats();
-      if (!activatedProject) await activateProject(project.value || 'epikur');
-    } else if (window.self === window.top) {
-      // Nur bei Direktzugriff (nicht im iframe) das Modal zeigen
-      showModal();
-    } else {
-      // Im iframe: Session wird vom Haupt-Dashboard geteilt — direkt laden
-      await loadChats();
-      if (!activatedProject) await activateProject(project.value || 'epikur');
+    try {
+      const me = await api('/api/users/me');
+      if (!me.loggedIn) {
+        showLogin();
+        emptyState();
+        return;
+      }
+      setUser(me);
+      await initializeWorkspace();
+    } catch (error) {
+      emptyState();
+      addMessage('assistant', `Workspace konnte nicht geladen werden: ${error.message}`, 'codex');
     }
-  })().catch(error => {
-    messages.innerHTML = '';
-    addMessage('assistant', `Fehler: ${error.message}`);
-  });
+  })();
 </script>
 </body>
 </html>

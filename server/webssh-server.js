@@ -22,8 +22,11 @@ const USERS_FILE = path.join(CHAT_DATA_DIR, 'users.json');
 const SESSIONS_FILE = path.join(CHAT_DATA_DIR, 'sessions.json');
 const GBRAIN_BIN = '/root/.bun/bin/gbrain';
 const GBRAIN_ENV = { ...process.env, HOME: '/root', PATH: '/root/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' };
-const CODEX_BIN = '/usr/bin/codex';
+const CODEX_BIN = process.env.CODEX_BIN || '/usr/bin/codex';
+const CLAUDE_BIN = process.env.CLAUDE_BIN || '/usr/bin/claude';
 const CODEX_HOME_ROOT = path.join(CHAT_DATA_DIR, 'codex-users');
+const CLAUDE_CONFIG_ROOT = path.join(CHAT_DATA_DIR, 'claude-users');
+const CODE_SETTINGS_FILE = path.join(CHAT_DATA_DIR, 'code-settings.json');
 const CODEX_PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 const projectControl = createProjectControlService({ dataDir: CHAT_DATA_DIR });
 const CHAT_MODELS = new Set(['sonnet', 'opus', 'haiku']);
@@ -42,16 +45,21 @@ const SERVER_SYSTEM_PROMPT = [
   'Du hast Zugriff auf GitHub via MCP (github-Tool). GitHub-Username: olesorgenfrey.',
   'Repos: Epikur-dashboard, epikur-produkt, epikur-werbung, epikur, epikur-patient.',
   'Nutze das github-MCP-Tool um Issues, PRs, Commits, Branches und Dateiinhalte direkt von GitHub abzurufen.',
-  'Du darfst niemals automatisch nach main mergen oder direkt nach main pushen. Arbeite immer auf einem Feature-Branch,',
-  'erstelle einen Pull Request und warte auf Checks sowie eine ausdrückliche manuelle Freigabe.',
-  'Du kannst Tasks im Practio-Dashboard verwalten. Wenn du einen Task erstellen oder ändern möchtest,',
-  'füge am Ende deiner Antwort <practio_action>-Blöcke im JSON-Format ein:',
-  'Neuen Task erstellen: <practio_action>{"action":"create_task","text":"Task-Text","assignee_id":"PERSON_ID"}</practio_action>',
-  'Task als erledigt markieren: <practio_action>{"action":"toggle_task","id":"TASK_ID","done":true}</practio_action>',
-  'Task wieder öffnen: <practio_action>{"action":"toggle_task","id":"TASK_ID","done":false}</practio_action>',
+  'Führe selbst keine Git-Commits, Pushes oder Deployments aus. Veröffentlichungen erfolgen ausschließlich',
+  'über den Publish-Dialog des Practio-Dashboards.',
+  'Du kannst Tasks im Practio-Dashboard verwalten. Wenn du Tasks erstellen oder ändern sollst,',
+  'füge am Ende deiner Antwort <practio_action>-Blöcke im JSON-Format ein.',
+  'Neuen Task erstellen (alle Felder außer title optional):',
+  '<practio_action>{"action":"create_task","title":"Titel","description":"Beschreibung","acceptance_criteria":["Kriterium"],"definition_of_done":["DoD"],"priority":"high","effort":"M","module":"Modulname","milestone_id":"MILESTONE_ID","assignee_id":"PERSON_ID","status":"backlog","vibe_difficulty":"mittel","vibe_duration":"~2-3h"}</practio_action>',
+  'priority: high | medium | low. effort: XS | S | M | L | XL. status: backlog | in_progress | review | done.',
+  'vibe_difficulty (wie schwer per Vibe-Coding umsetzbar): sehr leicht | leicht | mittel | schwer | sehr schwer.',
+  'vibe_duration (geschätzte Vibe-Coding-Dauer): ~15 min | ~30 min | ~1h | ~2-3h | ~4-6h | ~1 Tag | ~2-3 Tage | ~1 Woche.',
+  'Faustregel: einfaches UI leicht/~30 min, Formular mittel/~1h, komplexe Logik schwer/~1 Tag, Sicherheit/Datenschutz sehr schwer/~2-3 Tage.',
+  'Task aktualisieren (nur geänderte Felder): <practio_action>{"action":"update_task","id":"TASK_ID","title":"Neu","priority":"high","vibe_difficulty":"schwer","vibe_duration":"~1 Tag"}</practio_action>',
+  'Task erledigt: <practio_action>{"action":"toggle_task","id":"TASK_ID","done":true}</practio_action>',
+  'Task öffnen: <practio_action>{"action":"toggle_task","id":"TASK_ID","done":false}</practio_action>',
   'Task löschen: <practio_action>{"action":"delete_task","id":"TASK_ID"}</practio_action>',
-  'Die aktuellen Personen-IDs und Task-IDs werden dir vom Nutzer im Kontext mitgeteilt.',
-  'Füge die <practio_action>-Blöcke nur ein wenn du aktiv Tasks verwalten sollst – nicht bei normalen Antworten.',
+  'IDs für Personen, Tasks und Milestones kommen vom Nutzer im Kontext. Füge Aktionsblöcke nur ein wenn explizit Tasks verwaltet werden sollen.',
 ].join(' ');
 const PROJECTS = {
   epikur: {
@@ -64,6 +72,7 @@ const PROJECTS = {
     liveUrl: 'https://epikur.praxis-sorgenfrey.de',
     liveHealthUrl: 'http://127.0.0.1:3000/',
     deployCommand: '/home/ole/bin/epikur-auto-deploy',
+    publishExcludes: ['docker-compose.yml'],
   },
   'epikur-patient': {
     id: 'epikur-patient',
@@ -160,35 +169,70 @@ async function hasStagedChanges(repo) {
   }
 }
 
-async function publishReviewBranch(project, commitMessage) {
+function changedFilesFromStatus(output) {
+  if (!output.trim()) return [];
+  const files = output.split('\n').flatMap((line) => {
+    const value = (line[2] === ' ' ? line.slice(3) : line[1] === ' ' ? line.slice(2) : line.slice(3)).trim();
+    const rename = value.lastIndexOf(' -> ');
+    return rename >= 0 ? [value.slice(0, rename), value.slice(rename + 4)] : [value];
+  }).filter(Boolean);
+  return [...new Set(files)];
+}
+
+function isSensitivePublishPath(file) {
+  const normalized = file.replace(/\\/g, '/');
+  const basename = path.posix.basename(normalized).toLowerCase();
+  if (basename === '.env' || (basename.startsWith('.env.') && !['.env.example', '.env.sample'].includes(basename))) return true;
+  if (['auth.json', 'credentials.json', 'id_rsa', 'id_ed25519'].includes(basename)) return true;
+  return /\.(?:key|pem|p12|pfx)$/i.test(basename);
+}
+
+async function publishStatus(project) {
+  const output = await runGit(project.repo, ['status', '--short']);
+  const files = changedFilesFromStatus(output);
+  const configuredExcludes = new Set(project.publishExcludes || []);
+  const excluded = files.filter((file) => configuredExcludes.has(file) || isSensitivePublishPath(file));
+  const publishable = files.filter((file) => !excluded.includes(file));
   const branch = await runGit(project.repo, ['rev-parse', '--abbrev-ref', 'HEAD']);
-  if (!branch || branch === 'main' || branch === 'master') {
-    const error = new Error('Direkte Updates des Hauptbranches sind deaktiviert. Bitte zuerst einen Feature-Branch aktivieren.');
-    error.code = 'MAIN_PUSH_BLOCKED';
-    throw error;
+  let behind = 0;
+  let ahead = 0;
+  try {
+    const divergence = await runGit(project.repo, ['rev-list', '--left-right', '--count', 'origin/main...HEAD']);
+    [behind, ahead] = divergence.split(/\s+/).map(Number);
+  } catch {}
+  return { branch, files, publishable, excluded, behind, ahead };
+}
+
+async function publishToMain(project, commitMessage) {
+  await runGit(project.repo, ['fetch', 'origin', 'main']);
+  const status = await publishStatus(project);
+  await runGit(project.repo, ['reset', '--quiet']);
+  for (const file of status.publishable) {
+    await runGit(project.repo, ['add', '-A', '--', file]);
   }
-  await runGit(project.repo, ['add', '-A']);
   const committed = await hasStagedChanges(project.repo);
   if (committed) await runGit(project.repo, ['commit', '-m', commitMessage]);
 
-  await runGit(project.repo, ['fetch', 'origin', 'main']);
   try {
-    await runGit(project.repo, ['rebase', 'origin/main']);
+    await runGit(project.repo, ['rebase', '--autostash', 'origin/main']);
   } catch (error) {
     try { await runGit(project.repo, ['rebase', '--abort'], 20_000); } catch {}
+    error.code = 'REBASE_CONFLICT';
     throw error;
   }
 
   const filesOutput = await runGit(project.repo, ['diff', '--name-only', 'origin/main...HEAD']);
   const ahead = Number(await runGit(project.repo, ['rev-list', '--count', 'origin/main..HEAD'])) || 0;
-  if (ahead > 0) await runGit(project.repo, ['push', '--set-upstream', 'origin', `HEAD:${branch}`]);
+  if (ahead > 0) await runGit(project.repo, ['push', 'origin', 'HEAD:main']);
 
   return {
-    branch,
+    branch: status.branch,
+    target: 'main',
     commit: await runGit(project.repo, ['rev-parse', '--short', 'HEAD']),
     fullCommit: await runGit(project.repo, ['rev-parse', 'HEAD']),
     committed,
     pushedCommits: ahead,
+    excluded: status.excluded,
     files: filesOutput ? filesOutput.split('\n').filter(Boolean) : [],
     noChanges: !committed && ahead === 0,
   };
@@ -332,10 +376,28 @@ const activeClaudeChats = new Map();
 const activeCodexChats = new Map();
 const codexLoginProcesses = new Map();
 
-function claudeSessionExists(project, conversationId) {
+function claudeConfigForUser(userId) {
+  const dir = path.join(CLAUDE_CONFIG_ROOT, userId);
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  try { fs.chmodSync(dir, 0o700); } catch {}
+  return dir;
+}
+
+function claudeEnv(req) {
+  return {
+    ...process.env,
+    HOME: '/home/ole',
+    CLAUDE_CONFIG_DIR: claudeConfigForUser(req.session.userId),
+    PATH: CODEX_PATH,
+    NO_COLOR: '1',
+  };
+}
+
+function claudeSessionExists(req, project, conversationId) {
   const projectKey = project.repo.replace(/[^a-zA-Z0-9-]/g, '-');
   const sessionFile = path.join(
-    '/home/ole/.claude/projects',
+    claudeConfigForUser(req.session.userId),
+    'projects',
     projectKey,
     `${conversationId}.jsonl`
   );
@@ -348,11 +410,18 @@ function claudeChatBusy(res, conversationId) {
   return true;
 }
 
-function claudeSystemPrompt(req) {
+function claudeSystemPrompt(req, project) {
   const username = req.session?.username || 'unbekannt';
+  const secureTty = codeSettingsForUser(req.session?.userId).secureTty;
   return [
     SERVER_SYSTEM_PROMPT,
     `Der aktuell angemeldete Practio-Nutzer ist "${username}".`,
+    `Die rechts angezeigte Preview "${project.label}" läuft direkt aus dem Arbeitsverzeichnis ${project.repo}.`,
+    `Setze alle gewünschten Codeänderungen unmittelbar in ${project.repo} um, damit die Preview sie ohne Kopie oder separaten Checkout übernimmt.`,
+    project.previewUrl ? `Die zugehörige Preview-URL ist ${project.previewUrl}.` : 'Dieses Projekt besitzt keine Web-Preview.',
+    secureTty
+      ? 'SecureTTY ist aktiv. Arbeite ausschließlich im ausgewählten Projekt und führe keine administrativen Serveränderungen aus.'
+      : 'SecureTTY ist deaktiviert. Voller Serverzugriff ist für diese Sitzung freigegeben.',
     'Beziehe dich standardmäßig nur auf diesen Nutzer und seine eigenen Tasks.',
     'Analysiere, erwähne oder ändere Tasks anderer Personen nur, wenn die aktuelle Nutzernachricht',
     'ausdrücklich nach einer anderen Person, dem Team oder allen Tasks fragt.',
@@ -392,17 +461,46 @@ function codexEnv(req) {
   };
 }
 
+function readCodeSettings() {
+  try { return JSON.parse(fs.readFileSync(CODE_SETTINGS_FILE, 'utf8')); } catch { return {}; }
+}
+
+function writeCodeSettings(settings) {
+  fs.mkdirSync(CHAT_DATA_DIR, { recursive: true });
+  const temporaryFile = `${CODE_SETTINGS_FILE}.tmp`;
+  fs.writeFileSync(temporaryFile, JSON.stringify(settings, null, 2), { mode: 0o600 });
+  fs.renameSync(temporaryFile, CODE_SETTINGS_FILE);
+}
+
+function codeSettingsForUser(userId) {
+  const stored = userId ? readCodeSettings()[userId] : null;
+  return {
+    secureTty: stored?.secureTty !== false,
+    autoTestAccount: true,
+  };
+}
+
+function parseCodexLoginStatus(error, stdout = '', stderr = '') {
+  const output = stripAnsi(`${stdout}\n${stderr}`);
+  const loginLine = output
+    .split('\n')
+    .map((line) => line.trim())
+    .find((line) => /^logged in\b/i.test(line));
+
+  return {
+    loggedIn: !error && Boolean(loginLine),
+    method: !error && loginLine ? loginLine : null,
+    error: error ? (output.trim() || error.message) : null,
+  };
+}
+
 function codexLoginStatus(req, callback) {
   execFile(
     CODEX_BIN,
     ['login', 'status'],
     { env: codexEnv(req), timeout: 20_000, maxBuffer: 1024 * 1024 },
     (error, stdout, stderr) => {
-      callback(null, {
-        loggedIn: !error && /logged in/i.test(stdout),
-        method: !error ? stdout.trim() : null,
-        error: error ? (stderr || stdout || error.message).trim() : null,
-      });
+      callback(null, parseCodexLoginStatus(error, stdout, stderr));
     }
   );
 }
@@ -620,7 +718,7 @@ class JsonSessionStore extends session.Store {
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use('/public', express.static(path.join(__dirname, 'public')));
-app.use(express.json());
+app.use(express.json({ verify: (req, _res, buf) => { req.rawBody = buf; } }));
 app.use(express.urlencoded({ extended: false }));
 app.use(session({
   secret: SESSION_SECRET,
@@ -720,6 +818,29 @@ app.post('/api/users/logout', (req, res) => {
   req.session.userId = null;
   req.session.username = null;
   res.json({ ok: true });
+});
+
+app.get('/api/code/settings', requireApiAuth, (req, res) => {
+  res.json({
+    ...codeSettingsForUser(req.session.userId),
+    testAccountConfigured: previewTestAccountConfigured(),
+  });
+});
+
+app.post('/api/code/settings', requireApiAuth, (req, res) => {
+  if (typeof req.body.secureTty !== 'boolean') {
+    return res.status(400).json({ error: 'Ungültige SecureTTY-Einstellung.' });
+  }
+  const all = readCodeSettings();
+  all[req.session.userId] = {
+    secureTty: req.body.secureTty,
+    updatedAt: new Date().toISOString(),
+  };
+  writeCodeSettings(all);
+  res.json({
+    ...codeSettingsForUser(req.session.userId),
+    testAccountConfigured: previewTestAccountConfigured(),
+  });
 });
 
 // ─── Admin-API ────────────────────────────────────────────────────────────────
@@ -873,6 +994,124 @@ function getActivePreviewSettings(project) {
   } catch { return { devMode: false, publicDevMode: false }; }
 }
 
+function previewTestAccountConfigured() {
+  if (process.env.PREVIEW_TEST_EMAIL && process.env.PREVIEW_TEST_PASSWORD) return true;
+  const project = PROJECTS.epikur;
+  const active = project?.service ? getActivePreviewSettings(project) : {};
+  return active.devMode === true && active.publicDevMode === true;
+}
+
+// ─── GitHub Webhook Auto-Deploy ──────────────────────────────────────────────
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || '';
+const DEPLOY_STATUS_FILE = path.join(CHAT_DATA_DIR, 'deploy-status.json');
+
+function readDeployStatus() {
+  try { return JSON.parse(fs.readFileSync(DEPLOY_STATUS_FILE, 'utf8')); }
+  catch { return {}; }
+}
+function writeDeployStatus(status) {
+  try { fs.writeFileSync(DEPLOY_STATUS_FILE, JSON.stringify(status, null, 2)); } catch {}
+}
+
+const autoDeployStatus = readDeployStatus();
+
+function triggerAutoDeploy(appId, commit = null) {
+  if (autoDeployStatus[appId]?.status === 'running') return;
+  const scripts = { epikur: '/home/ole/bin/epikur-auto-deploy', 'epikur-patient': '/home/ole/bin/epikur-patient-auto-deploy' };
+  const script = scripts[appId];
+  const dashboardProject = appId === 'epikur-dashboard' ? PROJECTS['epikur-dashboard'] : null;
+  if (!script && !dashboardProject) return;
+  autoDeployStatus[appId] = {
+    status: 'running',
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+    log: '',
+    commit: commit ? String(commit).slice(0, 7) : null,
+    error: null,
+  };
+  writeDeployStatus(autoDeployStatus);
+  if (dashboardProject) {
+    deployProject(dashboardProject)
+      .then((result) => {
+        autoDeployStatus[appId] = {
+          status: 'success',
+          startedAt: autoDeployStatus[appId].startedAt,
+          finishedAt: new Date().toISOString(),
+          log: 'Dashboard-Dateien wurden aus dem Preview-Workspace veröffentlicht.',
+          commit: autoDeployStatus[appId].commit,
+          error: null,
+        };
+        writeDeployStatus(autoDeployStatus);
+        if (result.restartRequired) {
+          setTimeout(() => {
+            exec('sudo /usr/bin/systemctl restart webssh.service', (error, _stdout, stderr) => {
+              if (error) console.error('WebSSH restart failed:', stderr || error.message);
+            });
+          }, 750);
+        }
+      })
+      .catch((error) => {
+        autoDeployStatus[appId] = {
+          status: 'failed',
+          startedAt: autoDeployStatus[appId].startedAt,
+          finishedAt: new Date().toISOString(),
+          log: '',
+          commit: autoDeployStatus[appId].commit,
+          error: error.message || 'Dashboard-Deploy fehlgeschlagen',
+        };
+        writeDeployStatus(autoDeployStatus);
+        console.error('Auto-deploy epikur-dashboard failed:', error.message);
+      });
+    return;
+  }
+  exec(script, { timeout: 15 * 60 * 1000, shell: '/bin/bash', maxBuffer: 2 * 1024 * 1024 }, (error, stdout, stderr) => {
+    const log = (stdout + stderr).trim().slice(-3000);
+    const commitMatch = log.match(/Deployed main commit ([a-f0-9]+)/);
+    autoDeployStatus[appId] = {
+      status: error ? 'failed' : 'success',
+      startedAt: autoDeployStatus[appId].startedAt,
+      finishedAt: new Date().toISOString(),
+      log,
+      commit: commitMatch ? commitMatch[1].slice(0, 7) : autoDeployStatus[appId].commit,
+      error: error ? (error.message || 'Deploy fehlgeschlagen') : null,
+    };
+    writeDeployStatus(autoDeployStatus);
+    if (error) console.error(`Auto-deploy ${appId} failed:`, error.message);
+    else console.log(`Auto-deploy ${appId} succeeded`);
+  });
+}
+
+app.post('/api/deploy/webhook', (req, res) => {
+  const sig = req.headers['x-hub-signature-256'];
+  if (WEBHOOK_SECRET) {
+    if (!sig) return res.status(401).json({ error: 'Missing signature' });
+    const rawBuf = req.rawBody;
+    if (!rawBuf) return res.status(400).json({ error: 'No raw body' });
+    const expected = 'sha256=' + crypto.createHmac('sha256', WEBHOOK_SECRET).update(rawBuf).digest('hex');
+    try {
+      if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return res.status(401).json({ error: 'Invalid signature' });
+    } catch { return res.status(401).json({ error: 'Invalid signature' }); }
+  }
+  const payload = typeof req.body === 'object' ? req.body : (() => { try { return JSON.parse(req.rawBody?.toString() || '{}'); } catch { return {}; } })();
+  if (payload.ref !== 'refs/heads/main') return res.json({ ok: true, skipped: true });
+  const repo = payload.repository?.name;
+  const projectId = {
+    epikur: 'epikur',
+    'epikur-patient': 'epikur-patient',
+    'Epikur-dashboard': 'epikur-dashboard',
+    'epikur-dashboard': 'epikur-dashboard',
+  }[repo];
+  if (projectId) {
+    triggerAutoDeploy(projectId, payload.after);
+    return res.json({ ok: true, deploying: projectId });
+  }
+  res.json({ ok: true, skipped: true });
+});
+
+app.get('/api/deploy/status', requireApiAuth, (req, res) => {
+  res.json(autoDeployStatus);
+});
+
 app.get('/api/preview/settings', requireApiAuth, (req, res) => {
   const project = PROJECTS['epikur'];
   if (!project?.service) return res.status(404).json({ error: 'Kein Preview-Service.' });
@@ -920,6 +1159,76 @@ app.post('/api/preview/settings', requireApiAuth, async (req, res) => {
   }
 });
 
+function loginPreviewTestAccount(project, callback) {
+  const email = process.env.PREVIEW_TEST_EMAIL;
+  const password = process.env.PREVIEW_TEST_PASSWORD;
+  if (!email || !password) {
+    const active = project?.service ? getActivePreviewSettings(project) : {};
+    if (active.devMode === true && active.publicDevMode === true) {
+      callback(null, []);
+      return;
+    }
+    callback(new Error('Der Preview-Testaccount ist auf dem Server noch nicht konfiguriert.'));
+    return;
+  }
+
+  const target = new URL('/api/auth/sign-in/email', project.healthUrl || project.previewUrl);
+  const publicOrigin = new URL(project.previewUrl).origin;
+  const body = JSON.stringify({
+    email,
+    password,
+    rememberMe: true,
+    callbackURL: '/dashboard',
+  });
+  const client = target.protocol === 'https:' ? https : http;
+  const request = client.request({
+    protocol: target.protocol,
+    hostname: target.hostname,
+    port: target.port || undefined,
+    path: target.pathname,
+    method: 'POST',
+    rejectUnauthorized: false,
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(body),
+      Host: new URL(project.previewUrl).host,
+      Origin: publicOrigin,
+    },
+    timeout: 15_000,
+  }, (response) => {
+    let text = '';
+    response.on('data', (chunk) => {
+      text += chunk.toString();
+      if (text.length > 100_000) request.destroy(new Error('Preview-Antwort ist zu groß.'));
+    });
+    response.on('end', () => {
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        let message = 'Testaccount-Anmeldung fehlgeschlagen.';
+        try { message = JSON.parse(text).message || message; } catch {}
+        callback(new Error(message));
+        return;
+      }
+      const authCookies = response.headers['set-cookie'] || [];
+      callback(null, [
+        ...authCookies,
+        'mfa_session=1; Path=/; HttpOnly; Secure; SameSite=Lax',
+      ]);
+    });
+  });
+  request.on('timeout', () => request.destroy(new Error('Testaccount-Anmeldung hat zu lange gedauert.')));
+  request.on('error', callback);
+  request.end(body);
+}
+
+app.post('/api/preview/test-login', requireApiAuth, (req, res) => {
+  const project = PROJECTS.epikur;
+  loginPreviewTestAccount(project, (error, cookies) => {
+    if (error) return res.status(503).json({ error: error.message });
+    for (const cookie of cookies) res.append('Set-Cookie', cookie);
+    res.json({ ok: true });
+  });
+});
+
 app.get('/terminal', requireAuth, (req, res) => {
   res.redirect('/chat');
 });
@@ -933,15 +1242,15 @@ app.get('/chat', requireAuth, (req, res) => {
 
 app.get('/api/claude/status', requireApiAuth, (req, res) => {
   execFile(
-    '/usr/bin/claude',
+    CLAUDE_BIN,
     ['auth', 'status'],
-    { cwd: PROJECTS.epikur.repo, env: { ...process.env, HOME: '/home/ole' }, timeout: 20_000 },
+    { cwd: PROJECTS.epikur.repo, env: claudeEnv(req), timeout: 20_000 },
     (error, stdout) => {
-      if (error) return res.status(503).json({ loggedIn: false, error: 'Claude-Status nicht verfügbar' });
       try {
         const status = JSON.parse(stdout);
+        if (!status.loggedIn) return res.json(status);
         const credentials = JSON.parse(
-          fs.readFileSync('/home/ole/.claude/.credentials.json', 'utf8')
+          fs.readFileSync(path.join(claudeConfigForUser(req.session.userId), '.credentials.json'), 'utf8')
         ).claudeAiOauth;
         if (credentials?.expiresAt && credentials.expiresAt <= Date.now()) {
           return res.json({
@@ -952,10 +1261,19 @@ app.get('/api/claude/status', requireApiAuth, (req, res) => {
         }
         res.json(status);
       } catch {
+        if (error) return res.status(503).json({ loggedIn: false, error: 'Claude-Status nicht verfügbar' });
         res.status(503).json({ loggedIn: false, error: 'Ungültige Claude-Antwort' });
       }
     }
   );
+});
+
+app.post('/api/claude/logout', requireApiAuth, (req, res) => {
+  stopClaudeAuth(req.session.userId);
+  execFile(CLAUDE_BIN, ['auth', 'logout'], { env: claudeEnv(req), timeout: 20_000 }, (error) => {
+    if (error) return res.status(500).json({ error: 'Claude-Abmeldung fehlgeschlagen.' });
+    res.json({ ok: true });
+  });
 });
 
 app.get('/api/codex/status', requireApiAuth, (req, res) => {
@@ -1010,6 +1328,7 @@ app.get('/api/claude/projects', requireApiAuth, (req, res) => {
     hasPreview: Boolean(previewUrl),
     liveUrl: liveUrl || null,
     canDeploy: Boolean(liveUrl),
+    canPublish: Boolean(liveUrl),
   })));
 });
 
@@ -1020,15 +1339,14 @@ app.get('/api/claude/server-health', (req, res) => {
 app.post('/api/claude/projects/:id/activate', requireApiAuth, (req, res) => {
   const project = PROJECTS[req.params.id];
   if (!project) return res.status(404).json({ error: 'Projekt nicht gefunden.' });
-  const services = Object.values(PROJECTS).map((entry) => entry.service).filter(Boolean);
-  const command = [
-    ...services.filter((service) => service !== project.service).map((service) => `sudo systemctl stop ${service} || true`),
-    ...(project.service ? [`sudo systemctl start ${project.service}`] : []),
-  ].join(' && ');
   const activate = async () => {
-    await runShell(command || 'true');
+    if (project.service) {
+      await runShell(`sudo systemctl start ${project.service}`);
+      await waitForPreview(project.healthUrl, 45_000);
+    }
     return {
       ok: true,
+      ready: true,
       project: {
         id: project.id,
         label: project.label,
@@ -1049,17 +1367,15 @@ app.post('/api/claude/projects/:id/activate', requireApiAuth, (req, res) => {
 });
 
 app.get('/api/claude/git-status', requireApiAuth, (req, res) => {
-  const project = getProject(req.query.project);
-  execFile(
-    '/usr/bin/git',
-    ['status', '--short'],
-    { cwd: project.repo, env: { ...process.env, HOME: '/home/ole' }, timeout: 20_000 },
-    (error, stdout) => {
-      if (error) return res.status(500).json({ error: 'Git-Status konnte nicht geladen werden.' });
-      const files = stdout.trim() ? stdout.trim().split('\n') : [];
-      res.json({ dirty: files.length > 0, files });
-    }
-  );
+  const project = PROJECTS[req.query.project];
+  if (!project) return res.status(404).json({ error: 'Projekt nicht gefunden.' });
+  publishStatus(project)
+    .then((status) => res.json({
+      dirty: status.files.length > 0,
+      target: 'main',
+      ...status,
+    }))
+    .catch(() => res.status(500).json({ error: 'Git-Status konnte nicht geladen werden.' }));
 });
 
 app.post('/api/claude/publish', requireApiAuth, (req, res) => {
@@ -1070,16 +1386,20 @@ app.post('/api/claude/publish', requireApiAuth, (req, res) => {
     .replace(/[\r\n]+/g, ' ')
     .slice(0, 120);
 
-  const publish = publishQueue.catch(() => {}).then(() => publishReviewBranch(project, commitMessage));
+  if (!project.liveUrl) return res.status(409).json({ error: 'Für dieses Projekt ist kein Publish-Ziel konfiguriert.', stage: 'push' });
+  const publish = publishQueue.catch(() => {}).then(() => publishToMain(project, commitMessage));
   publishQueue = publish;
   publish
-    .then((result) => res.json({ ok: true, project: project.id, ...result }))
+    .then((result) => {
+      if (!result.noChanges) triggerAutoDeploy(project.id, result.commit);
+      res.json({ ok: true, project: project.id, deploying: !result.noChanges, ...result });
+    })
     .catch((error) => {
-      console.error('Review branch publish failed:', error.stderr || error.message);
-      res.status(error.code === 'MAIN_PUSH_BLOCKED' ? 409 : 500).json({
-        error: error.code === 'MAIN_PUSH_BLOCKED'
-          ? error.message
-          : 'Review-Branch konnte nicht gepusht werden. Details stehen im Server-Log.',
+      console.error('Main publish failed:', error.stderr || error.message);
+      res.status(error.code === 'REBASE_CONFLICT' ? 409 : 500).json({
+        error: error.code === 'REBASE_CONFLICT'
+          ? 'Publish abgebrochen: Die Änderungen kollidieren mit dem aktuellen Stand von main.'
+          : 'Änderungen konnten nicht nach main gepusht werden. Details stehen im Server-Log.',
         stage: 'push',
       });
     });
@@ -1198,7 +1518,7 @@ app.post('/api/claude/chat', requireApiAuth, chatLimiter, (req, res) => {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(conversationId)) {
     return res.status(400).json({ error: 'Ungültige Chat-ID.' });
   }
-  if (!hasCurrentClaudeCredentials()) {
+  if (!hasCurrentClaudeCredentials(req)) {
     return res.status(401).json({
       error: 'Claude-Anmeldung ist abgelaufen.',
       loginUrl: '/claude-auth',
@@ -1211,7 +1531,7 @@ app.post('/api/claude/chat', requireApiAuth, chatLimiter, (req, res) => {
   if (claudeChatBusy(res, conversationId)) return;
   const project = getProject(chat.project);
 
-  const resume = claudeSessionExists(project, conversationId);
+  const resume = claudeSessionExists(req, project, conversationId);
   const now = new Date().toISOString();
   chat.model = model;
   chat.effort = effort;
@@ -1221,15 +1541,16 @@ app.post('/api/claude/chat', requireApiAuth, chatLimiter, (req, res) => {
   nameChatFromMessage(chat, message);
   writeChats(chats);
 
+  const secureTty = codeSettingsForUser(req.session.userId).secureTty;
   const args = [
     '-p',
     prompt,
     '--output-format',
     'json',
     '--permission-mode',
-    'bypassPermissions',
+    secureTty ? 'acceptEdits' : 'bypassPermissions',
     '--append-system-prompt',
-    claudeSystemPrompt(req),
+    claudeSystemPrompt(req, project),
     '--model',
     model,
     '--effort',
@@ -1239,11 +1560,11 @@ app.post('/api/claude/chat', requireApiAuth, chatLimiter, (req, res) => {
   else args.push('--session-id', conversationId);
 
   const child = execFile(
-    '/usr/bin/claude',
+    CLAUDE_BIN,
     args,
     {
       cwd: project.repo,
-      env: { ...process.env, HOME: '/home/ole' },
+      env: claudeEnv(req),
       timeout: 10 * 60 * 1000,
       maxBuffer: 10 * 1024 * 1024,
     },
@@ -1348,14 +1669,15 @@ app.post('/api/codex/chat', requireApiAuth, chatLimiter, (req, res) => {
 
     const prompt = [
       '[Verbindliche Server-Anweisung]',
-      claudeSystemPrompt(req),
+      claudeSystemPrompt(req, project),
       '[/Verbindliche Server-Anweisung]',
       '',
       promptMessage,
     ].join('\n');
+    const secureTty = codeSettingsForUser(req.session.userId).secureTty;
     const commonArgs = [
       '-a', 'never',
-      '-s', 'danger-full-access',
+      '-s', secureTty ? 'workspace-write' : 'danger-full-access',
       'exec',
     ];
     const runArgs = chat.codexThreadId
@@ -1489,13 +1811,19 @@ app.post('/api/claude/chat/stream', requireApiAuth, chatLimiter, (req, res) => {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(conversationId)) {
     return res.status(400).json({ error: 'Ungültige Chat-ID.' });
   }
+  if (!hasCurrentClaudeCredentials(req)) {
+    return res.status(401).json({
+      error: 'Claude ist für diesen Nutzer nicht angemeldet.',
+      loginUrl: '/claude-auth',
+    });
+  }
 
   const chats = readChats();
   const chat = findUserChat(chats, conversationId, req.session.userId);
   if (!chat) return res.status(404).json({ error: 'Chat nicht gefunden.' });
   if (claudeChatBusy(res, conversationId)) return;
   const project = getProject(chat.project);
-  const resume = claudeSessionExists(project, conversationId);
+  const resume = claudeSessionExists(req, project, conversationId);
   const now = new Date().toISOString();
 
   chat.model = model;
@@ -1519,6 +1847,7 @@ app.post('/api/claude/chat/stream', requireApiAuth, chatLimiter, (req, res) => {
   };
   emit({ type: 'chat_title', title: chat.title, updatedAt: chat.updatedAt });
 
+  const secureTty = codeSettingsForUser(req.session.userId).secureTty;
   const args = [
     '-p',
     prompt,
@@ -1527,9 +1856,9 @@ app.post('/api/claude/chat/stream', requireApiAuth, chatLimiter, (req, res) => {
     '--verbose',
     '--include-partial-messages',
     '--permission-mode',
-    'bypassPermissions',
+    secureTty ? 'acceptEdits' : 'bypassPermissions',
     '--append-system-prompt',
-    claudeSystemPrompt(req),
+    claudeSystemPrompt(req, project),
     '--model',
     model,
     '--effort',
@@ -1538,9 +1867,9 @@ app.post('/api/claude/chat/stream', requireApiAuth, chatLimiter, (req, res) => {
   if (resume) args.push('--resume', conversationId);
   else args.push('--session-id', conversationId);
 
-  const child = spawn('/usr/bin/claude', args, {
+  const child = spawn(CLAUDE_BIN, args, {
     cwd: project.repo,
-    env: { ...process.env, HOME: '/home/ole' },
+    env: claudeEnv(req),
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   activeClaudeChats.set(conversationId, child);
@@ -1703,108 +2032,113 @@ app.post('/api/claude/chat/stream', requireApiAuth, chatLimiter, (req, res) => {
 
 
 
-// ─── Claude Auth (stabil, kein Neustart beim Reload) ─────────────────────────
-let _claudeAuthUrl = null;
-let _claudeAuthProcess = null;
-let _claudeAuthOutput = '';
-let _claudeAuthWaiters = [];
+// ─── Claude Auth pro Dashboard-Nutzer ────────────────────────────────────────
+const claudeAuthProcesses = new Map();
 
-function hasCurrentClaudeCredentials() {
+function hasCurrentClaudeCredentials(req) {
   try {
     const credentials = JSON.parse(
-      fs.readFileSync('/home/ole/.claude/.credentials.json', 'utf8')
+      fs.readFileSync(path.join(claudeConfigForUser(req.session.userId), '.credentials.json'), 'utf8')
     ).claudeAiOauth;
-    return Boolean(credentials?.accessToken && credentials?.expiresAt > Date.now());
+    return Boolean(credentials?.accessToken && (!credentials.expiresAt || credentials.expiresAt > Date.now()));
   } catch {
     return false;
   }
 }
 
-function finishClaudeAuthStart(error, url) {
-  const waiters = _claudeAuthWaiters;
-  _claudeAuthWaiters = [];
+function finishClaudeAuthStart(state, error, url) {
+  const waiters = state.waiters.splice(0);
   waiters.forEach((waiter) => waiter(error, url));
 }
 
-function stopClaudeAuth() {
-  const child = _claudeAuthProcess;
-  _claudeAuthProcess = null;
-  _claudeAuthUrl = null;
-  _claudeAuthOutput = '';
-  if (_claudeAuthWaiters.length) {
-    finishClaudeAuthStart(new Error('Login wurde neu gestartet'));
-  }
-  if (child) {
-    try { child.kill('SIGTERM'); } catch {}
+function stopClaudeAuth(userId) {
+  const state = claudeAuthProcesses.get(userId);
+  if (!state) return;
+  claudeAuthProcesses.delete(userId);
+  if (state.waiters.length) finishClaudeAuthStart(state, new Error('Login wurde neu gestartet'));
+  if (state.child) {
+    try { state.child.kill('SIGTERM'); } catch {}
   }
 }
 
-function startClaudeAuth(cb) {
-  if (_claudeAuthUrl) return cb(null, _claudeAuthUrl);
-  _claudeAuthWaiters.push(cb);
-  if (_claudeAuthProcess) return;
+function startClaudeAuth(req, callback) {
+  const userId = req.session.userId;
+  const existing = claudeAuthProcesses.get(userId);
+  if (existing?.url) return callback(null, existing.url);
+  if (existing) {
+    existing.waiters.push(callback);
+    return;
+  }
 
-  _claudeAuthOutput = '';
-  const child = spawn('/usr/bin/claude', ['auth', 'login'], {
+  const state = { child: null, url: null, output: '', waiters: [callback] };
+  const child = spawn(CLAUDE_BIN, ['auth', 'login'], {
     cwd: PROJECTS.epikur.repo,
-    env: { ...process.env, HOME: '/home/ole', BROWSER: 'echo', NO_COLOR: '1' },
+    env: { ...claudeEnv(req), BROWSER: 'echo' },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
-  _claudeAuthProcess = child;
+  state.child = child;
+  claudeAuthProcesses.set(userId, state);
 
   const consume = (chunk) => {
-    if (_claudeAuthProcess !== child) return;
-    _claudeAuthOutput += chunk.toString().replace(/\x1b\[[0-9;]*m/g, '');
-    if (_claudeAuthOutput.length > 30_000) _claudeAuthOutput = _claudeAuthOutput.slice(-30_000);
-    if (_claudeAuthUrl) return;
-    const match = _claudeAuthOutput.match(/https:\/\/[^\s]+/);
+    if (claudeAuthProcesses.get(userId) !== state) return;
+    state.output += stripAnsi(chunk.toString());
+    if (state.output.length > 30_000) state.output = state.output.slice(-30_000);
+    if (state.url) return;
+    const match = state.output.match(/https:\/\/[^\s]+/);
     if (match) {
-      _claudeAuthUrl = match[0];
-      finishClaudeAuthStart(null, _claudeAuthUrl);
+      state.url = match[0];
+      finishClaudeAuthStart(state, null, state.url);
     }
   };
 
   child.stdout.on('data', consume);
   child.stderr.on('data', consume);
   child.on('error', (error) => {
-    if (_claudeAuthProcess !== child) return;
-    _claudeAuthProcess = null;
-    finishClaudeAuthStart(error);
+    if (claudeAuthProcesses.get(userId) !== state) return;
+    state.child = null;
+    if (state.waiters.length) finishClaudeAuthStart(state, error);
+    claudeAuthProcesses.delete(userId);
   });
   child.on('close', () => {
-    if (_claudeAuthProcess !== child) return;
-    _claudeAuthProcess = null;
-    if (!_claudeAuthUrl) finishClaudeAuthStart(new Error('URL nicht gefunden'));
+    if (claudeAuthProcesses.get(userId) !== state) return;
+    state.child = null;
+    if (!state.url && state.waiters.length) {
+      finishClaudeAuthStart(state, new Error('Login-URL nicht gefunden'));
+      claudeAuthProcesses.delete(userId);
+    }
   });
 
   setTimeout(() => {
-    if (!_claudeAuthUrl && _claudeAuthProcess === child) {
-      child.kill('SIGTERM');
-      finishClaudeAuthStart(new Error('URL nicht gefunden'));
+    if (!state.url && claudeAuthProcesses.get(userId) === state) {
+      try { child.kill('SIGTERM'); } catch {}
+      if (state.waiters.length) finishClaudeAuthStart(state, new Error('Login-URL nicht gefunden'));
+      claudeAuthProcesses.delete(userId);
     }
   }, 20_000);
 }
 
-app.get('/claude-auth', requireAuth, (req, res) => {
+app.get('/claude-auth', requireApiAuth, (req, res) => {
   const send = (url) => {
     const page = "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,maximum-scale=1\">\n<title>Claude Login</title>\n<style>\n*{box-sizing:border-box;margin:0;padding:0}\nbody{background:#0d1117;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;font-family:-apple-system,BlinkMacSystemFont,sans-serif}\n.box{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:32px;width:100%;max-width:420px}\nh2{color:#e6edf3;font-size:20px;margin-bottom:8px;text-align:center}\n.sub{color:#7d8590;font-size:13px;text-align:center;margin-bottom:24px}\n.step{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}\n.num{background:#21262d;color:#58a6ff;border-radius:50%;width:26px;height:26px;min-width:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;margin-top:2px}\n.step p{color:#e6edf3;font-size:14px;line-height:1.5}\n.btn{display:block;width:100%;padding:14px;background:#238636;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;text-align:center;text-decoration:none;margin-top:8px;-webkit-appearance:none}\n.btn-reset{width:100%;padding:10px;background:transparent;border:1px solid #30363d;color:#7d8590;border-radius:8px;font-size:13px;cursor:pointer;margin-top:12px;-webkit-appearance:none}\ninput{width:100%;padding:14px;background:#0d1117;border:1px solid #30363d;border-radius:10px;color:#e6edf3;font-size:16px;outline:none;margin-top:12px;-webkit-appearance:none}\ninput:focus{border-color:#388bfd}\n.msg{display:none;margin-top:12px;padding:12px;border-radius:8px;font-size:14px;text-align:center}\n.ok{background:rgba(63,185,80,.15);border:1px solid rgba(63,185,80,.4);color:#3fb950}\n.err{background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.4);color:#f85149}\n</style>\n</head>\n<body>\n<div class=\"box\">\n  <h2>Claude Login</h2>\n  <p class=\"sub\">URL bleibt gültig — kein Zeitdruck beim Code-Eingeben</p>\n  <div class=\"step\"><div class=\"num\">1</div><p>Tippe auf den Button und logge dich bei Claude an</p></div>\n  <a class=\"btn\" href=\"OAUTH_URL\" target=\"_blank\">Bei Claude anmelden &rarr;</a>\n  <div class=\"step\" style=\"margin-top:18px\"><div class=\"num\">2</div><p>Den Code von der Claude-Seite hier einfügen</p></div>\n  <input type=\"text\" id=\"code\" placeholder=\"Code einfügen...\" autocomplete=\"off\" autocorrect=\"off\" autocapitalize=\"none\" spellcheck=\"false\">\n  <button class=\"btn\" onclick=\"submitCode()\" id=\"sb\" style=\"margin-top:12px\">Code bestätigen</button>\n  <button class=\"btn-reset\" onclick=\"location.href='/claude-auth/reset'\">Neuen Link generieren</button>\n  <div class=\"msg\" id=\"msg\"></div>\n</div>\n<script>\nasync function submitCode() {\n  const code = document.getElementById('code').value.trim();\n  if (!code) return;\n  const btn = document.getElementById('sb'), msg = document.getElementById('msg');\n  btn.textContent = '...'; btn.disabled = true; msg.style.display = 'none';\n  try {\n    const r = await fetch('/claude-auth/submit', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code})});\n    const d = await r.json();\n    msg.style.display = 'block';\n    if (d.success) { msg.className='msg ok'; msg.textContent='Erfolgreich! Du kannst claude jetzt in Terminus nutzen.'; }\n    else { msg.className='msg err'; msg.textContent=(d.error||'Fehler'); btn.textContent='Code bestätigen'; btn.disabled=false; }\n  } catch(e) { msg.style.display='block'; msg.className='msg err'; msg.textContent='Verbindungsfehler'; btn.textContent='Code bestätigen'; btn.disabled=false; }\n}\n</script>\n</body></html>".replace('OAUTH_URL', url.replace(/&/g, '&amp;'));
     res.send(page);
   };
-  if (_claudeAuthUrl) { send(_claudeAuthUrl); return; }
-  startClaudeAuth((err, url) => {
+  const state = claudeAuthProcesses.get(req.session.userId);
+  if (state?.url) { send(state.url); return; }
+  startClaudeAuth(req, (err, url) => {
     if (err) { res.send('<p style="color:white;padding:20px">Fehler beim Starten. <a href="/claude-auth/reset" style="color:#58a6ff">Neu versuchen</a></p>'); return; }
     send(url);
   });
 });
 
-app.get('/claude-auth/reset', requireAuth, (req, res) => {
-  stopClaudeAuth();
+app.get('/claude-auth/reset', requireApiAuth, (req, res) => {
+  stopClaudeAuth(req.session.userId);
   res.redirect('/claude-auth');
 });
 
-app.post('/claude-auth/submit', requireAuth, (req, res) => {
+app.post('/claude-auth/submit', requireApiAuth, (req, res) => {
   const code = typeof req.body.code === 'string' ? req.body.code.trim() : '';
-  const child = _claudeAuthProcess;
+  const state = claudeAuthProcesses.get(req.session.userId);
+  const child = state?.child;
   if (!code) return res.json({ success: false, error: 'Kein Code' });
   if (code.length > 4096 || /[\r\n]/.test(code)) {
     return res.json({ success: false, error: 'Ungültiger Code' });
@@ -1816,12 +2150,12 @@ app.post('/claude-auth/submit', requireAuth, (req, res) => {
   child.stdin.write(`${code}\n`);
   const deadline = Date.now() + 15_000;
   const verify = () => {
-    if (hasCurrentClaudeCredentials()) {
-      _claudeAuthUrl = null;
+    if (hasCurrentClaudeCredentials(req)) {
+      stopClaudeAuth(req.session.userId);
       return res.json({ success: true });
     }
-    if (Date.now() >= deadline || (_claudeAuthProcess !== child && !child.stdin.writable)) {
-      _claudeAuthUrl = null;
+    if (Date.now() >= deadline || (state.child !== child && !child.stdin.writable)) {
+      stopClaudeAuth(req.session.userId);
       return res.json({
         success: false,
         error: 'Code wurde nicht akzeptiert — bitte neuen Link generieren.',

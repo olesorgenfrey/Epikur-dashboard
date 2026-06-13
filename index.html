@@ -203,6 +203,7 @@ textarea:focus{border-color:var(--a)}textarea::placeholder{color:var(--t3)}
 .task-card{width:100%;text-align:left;padding:12px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--t);font-family:inherit;cursor:pointer;transition:transform 160ms var(--ease),border-color 160ms var(--ease),background 160ms var(--ease)}
 .task-card:hover{transform:translateY(-1px);border-color:rgba(110,168,255,.35);background:rgba(110,168,255,.07)}.task-card:focus-visible{outline:2px solid var(--a);outline-offset:2px}
 .task-card-title{font-size:12px;font-weight:600;line-height:1.45}.task-card-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:9px}.mini-tag{display:inline-flex;align-items:center;min-height:22px;padding:3px 7px;border-radius:6px;background:rgba(255,255,255,.06);font-size:9px;color:var(--t2);font-family:'IBM Plex Mono',monospace}
+.vd-sehr-leicht{background:rgba(74,222,128,.13);color:#4ADE80}.vd-leicht{background:rgba(110,168,255,.13);color:#6EA8FF}.vd-mittel{background:rgba(250,204,21,.13);color:#FACC15}.vd-schwer{background:rgba(251,146,60,.13);color:#FB923C}.vd-sehr-schwer{background:rgba(248,113,113,.13);color:#F87171}
 .task-card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:9px;color:var(--t3);font-family:'IBM Plex Mono',monospace}.task-gh{display:flex;align-items:center;gap:5px}
 .empty-col{padding:24px 10px;text-align:center;color:var(--t3);font-size:10px;line-height:1.7;font-family:'IBM Plex Mono',monospace}
 .pc-overlay{position:fixed;inset:0;z-index:8500;background:rgba(0,0,0,.64);backdrop-filter:blur(5px);display:flex;justify-content:flex-end}
@@ -364,8 +365,8 @@ textarea:focus{border-color:var(--a)}textarea::placeholder{color:var(--t3)}
 <script type="text/babel">
 const {useState,useEffect,useRef}=React;
 
-const SB_URL  ="https://jhlxdbnotgamjqbfwcfl.supabase.co";
-const SB_ANON ="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpobHhkYm5vdGdhbWpxYmZ3Y2ZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMDM3NTEsImV4cCI6MjA5NjU3OTc1MX0.-mty9c6ydSs3fLXsAmVhxozmM1x8Hn19yO4rr0cTrqU";
+const SB_URL  ="https://wmnumffinfaaebmelpld.supabase.co";
+const SB_ANON ="sb_publishable_2E-NB-mFuvQjXmw7VMEmaA_vaW4129t";
 const TTYD_URL="/terminal-login";
 
 const H={apikey:SB_ANON,Authorization:`Bearer ${SB_ANON}`,"Content-Type":"application/json",Prefer:"return=representation"};
@@ -501,6 +502,23 @@ const TASK_STATUSES=[
   {id:"done",label:"Fertig",color:"#4ADE80"},
 ];
 const PRIORITY_WEIGHT={high:3,medium:2,low:1};
+const VIBE_DIFFICULTIES=[
+  {id:"sehr leicht",label:"Sehr leicht",cls:"vd-sehr-leicht"},
+  {id:"leicht",label:"Leicht",cls:"vd-leicht"},
+  {id:"mittel",label:"Mittel",cls:"vd-mittel"},
+  {id:"schwer",label:"Schwer",cls:"vd-schwer"},
+  {id:"sehr schwer",label:"Sehr schwer",cls:"vd-sehr-schwer"},
+];
+const VIBE_DURATIONS=["~15 min","~30 min","~1h","~2-3h","~4-6h","~1 Tag","~2-3 Tage","~1 Woche"];
+function vibeDiffCls(d){return(VIBE_DIFFICULTIES.find(v=>v.id===d)||{cls:""}).cls;}
+function vibeDiffForModule(module,isResearch){
+  if(isResearch)return{vibe_difficulty:"leicht",vibe_duration:"~30 min"};
+  const m=(module||"").toLowerCase();
+  if(m.includes("sicherheit")||m.includes("betrieb"))return{vibe_difficulty:"sehr schwer",vibe_duration:"~2-3 Tage"};
+  if(m.includes("abrechnung"))return{vibe_difficulty:"schwer",vibe_duration:"~1 Tag"};
+  if(m.includes("dokumentation")||m.includes("dokument"))return{vibe_difficulty:"leicht",vibe_duration:"~2-3h"};
+  return{vibe_difficulty:"mittel",vibe_duration:"~4-6h"};
+}
 const taskName=task=>task.title||task.text||"Unbenannter Task";
 const memberFor=(task,members)=>members.find(member=>member.id===(task.team_member_id||task.assignee_id));
 function nextSensibleTask(tasks){
@@ -599,6 +617,7 @@ function Overview({leads,tasks,persons,teamMembers,db}){
         <SC name="Offene Tasks" value={s.open} cap={`→ ${s.done} erledigt`} color="#C084FC" icon={ic.tasks} delay="160ms"/>
         <SC name="MRR" value="€0" cap="→ Ziel: €500 / Monat" color="#4ADE80" icon={ic.finance} delay="210ms"/>
       </div>
+      <DeployStatusCard/>
       <DailyFocus tasks={tasks} teamMembers={teamMembers}/>
       <div className="g2">
         <div className="gl card" style={{animationDelay:"240ms"}}>
@@ -625,6 +644,43 @@ function Overview({leads,tasks,persons,teamMembers,db}){
             ))}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function DeployStatusCard(){
+  const [status,setStatus]=useState(null);
+  const load=()=>fetch("/api/deploy/status",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>d&&setStatus(d)).catch(()=>{});
+  useEffect(()=>{load();const t=setInterval(load,10000);return()=>clearInterval(t);},[]);
+  const apps=[
+    {id:"epikur",label:"Praxis-App",url:"https://epikur.praxis-sorgenfrey.de"},
+    {id:"epikur-patient",label:"Patienten-App",url:"https://patienten.praxis-sorgenfrey.de"},
+  ];
+  const dot={success:"#4ADE80",running:"#FBBf24",failed:"#F87171",idle:"#6B7280"};
+  const label={success:"Deployed",running:"Läuft…",failed:"Fehler",idle:"—"};
+  const fmt=d=>d?new Date(d).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"–";
+  return(
+    <div className="card" style={{animationDelay:"300ms",marginTop:0}}>
+      <div className="ch">
+        <span className="ct">Auto-Deploy</span>
+        <span style={{fontSize:11,color:"rgba(255,255,255,.4)"}}>Push → main löst Deploy aus</span>
+      </div>
+      <div className="cb">
+        {apps.map(app=>{
+          const s=status?.[app.id]||{status:"idle"};
+          const col=dot[s.status]||dot.idle;
+          return(
+            <div key={app.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderBottom:"1px solid rgba(255,255,255,.05)"}}>
+              <span style={{width:8,height:8,borderRadius:"50%",background:col,flexShrink:0,boxShadow:s.status==="running"?`0 0 6px ${col}`:"none"}}/>
+              <span style={{fontSize:13,fontWeight:600,flex:1}}>{app.label}</span>
+              <span style={{fontSize:11,color:col,fontWeight:600,minWidth:60,textAlign:"right"}}>{label[s.status]||"—"}</span>
+              {s.commit&&<span style={{fontSize:11,fontFamily:"monospace",color:"rgba(255,255,255,.4)"}}>{s.commit}</span>}
+              <span style={{fontSize:11,color:"rgba(255,255,255,.35)",minWidth:90,textAlign:"right"}}>{fmt(s.finishedAt)}</span>
+            </div>
+          );
+        })}
+        {!status&&<div style={{fontSize:12,color:"rgba(255,255,255,.35)",padding:"8px 0"}}>Nicht eingeloggt oder kein Status</div>}
       </div>
     </div>
   );
@@ -791,6 +847,7 @@ function Tasks({tasks,setTasks,persons,setPersons,db}){
 }
 
 function ModeBanner({mode,warning}){
+  if(mode==="loading")return null;
   const fallback=mode!=="supabase";
   return <div className={`pc-banner ${fallback?"warn":""}`}>
     <span>{fallback?"Fallback-Modus · lokal/serverseitig gespeichert":"Supabase · Projekt-Daten verbunden"}</span>
@@ -818,40 +875,50 @@ function MasterplanPage({masterplans,milestones,tasks,teamMembers,mode,warning,s
     });
     setBusy(false);setMessage(`Version ${version} gespeichert.`);
   };
-  const generateTasks=async()=>{
+  const generateTasks=async(reset=false)=>{
     const modules=fromLines(asLines(draft.modules));
     if(!modules.length){setMessage("Mindestens ein Modul ist erforderlich.");return;}
+    if(reset&&tasks.length>0){
+      if(!window.confirm(`Alle ${tasks.length} bestehenden Tasks löschen und neu generieren?`))return;
+    }
     setBusy(true);setMessage("");
+    if(reset){
+      for(const t of tasks){await deleteResource("tasks",t.id).catch(()=>{});}
+    }
     const ole=teamMembers.find(member=>member.name.toLowerCase()==="ole");
     const henry=teamMembers.find(member=>member.name.toLowerCase()==="henry");
-    const existing=new Set(tasks.map(task=>taskName(task).toLowerCase()));
+    const currentTasks=reset?[]:tasks;
+    const existing=new Set(currentTasks.map(task=>taskName(task).toLowerCase()));
     let created=0;
     for(const [index,module] of modules.entries()){
       const researchTitle=`${module}: Anforderungen und Praxisfälle konkretisieren`;
-      const existingResearch=tasks.find(task=>taskName(task).toLowerCase()===researchTitle.toLowerCase());
+      const existingResearch=currentTasks.find(task=>taskName(task).toLowerCase()===researchTitle.toLowerCase());
       const researchId=existingResearch?.id||makeId();
+      const researchVibe=vibeDiffForModule(module,true);
       if(!existing.has(researchTitle.toLowerCase())){
         await saveResource("tasks",{
           id:researchId,project_id:PROJECT_ID,title:researchTitle,text:researchTitle,
           description:`Recherche, Praxisanforderungen und offene Entscheidungen für das Modul ${module} dokumentieren.`,
           acceptance_criteria:["Mindestens drei konkrete Praxisfälle dokumentiert","Offene Produktentscheidungen markiert","Ergebnis im Task kommentiert"],
-          definition_of_done:["Recherche geprüft","Dokumentation verlinkt"],priority:"medium",module,effort:"S",
+          definition_of_done:["Recherche geprüft","Dokumentation verlinkt"],
+          priority:"medium",module,effort:"S",...researchVibe,
           team_member_id:henry?.id||null,dependencies:[],status:"backlog",done:false,sort_order:index*2,
         });created++;
       }
       const buildTitle=`${module}: MVP-Slice umsetzen`;
+      const buildVibe=vibeDiffForModule(module,false);
       if(!existing.has(buildTitle.toLowerCase())){
         await saveResource("tasks",{
           id:makeId(),project_id:PROJECT_ID,title:buildTitle,text:buildTitle,
           description:`Kleinsten produktionsfähigen End-to-End-Slice für ${module} implementieren.`,
           acceptance_criteria:["Kernworkflow funktioniert Ende-zu-Ende","Fehler- und Empty States vorhanden","Relevante Tests laufen","Keine Secrets im Frontend"],
           definition_of_done:["Branch und Commit verknüpft","AI Review durchgeführt","PR-Checks bestanden","Manuelle Freigabe dokumentiert"],
-          priority:"high",module,effort:"M",team_member_id:ole?.id||null,
-          dependencies:[researchId],status:"backlog",done:false,sort_order:index*2+1,
+          priority:"high",module,effort:"M",...buildVibe,
+          team_member_id:ole?.id||null,dependencies:[researchId],status:"backlog",done:false,sort_order:index*2+1,
         });created++;
       }
     }
-    setBusy(false);setMessage(`${created} Tasks erzeugt.`);
+    setBusy(false);setMessage(reset?`${created} Tasks neu generiert.`:`${created} Tasks erzeugt.`);
     if(created)setTimeout(onOpenBoard,450);
   };
   const updateList=(field,value)=>setDraft({...draft,[field]:value.split("\n")});
@@ -861,7 +928,8 @@ function MasterplanPage({masterplans,milestones,tasks,teamMembers,mode,warning,s
         <div><h1 className="ptitle">Master<em>plan</em></h1><p className="psub">Produktplan · Version {current.version||1}</p></div>
         <div className="pc-actions">
           <button className="btn btn-g" onClick={saveVersion} disabled={busy}>Version speichern</button>
-          <button className="btn btn-p" onClick={generateTasks} disabled={busy}>{busy?"Arbeite…":"Tasks generieren"}</button>
+          <button className="btn btn-g" onClick={()=>generateTasks(false)} disabled={busy}>{busy?"Arbeite…":"Tasks ergänzen"}</button>
+          <button className="btn btn-p" onClick={()=>generateTasks(true)} disabled={busy}>{busy?"Arbeite…":"Alles neu generieren"}</button>
         </div>
       </div>
       <ModeBanner mode={mode} warning={warning}/>
@@ -993,6 +1061,8 @@ function TaskDrawer({task,tasks,teamMembers,comments,checklist,githubLinks,saveR
           <div className="pc-field"><label className="pc-label">Priorität</label><select className="pc-input" value={draft.priority||"medium"} onChange={e=>setDraft({...draft,priority:e.target.value})}><option value="high">Hoch</option><option value="medium">Mittel</option><option value="low">Niedrig</option></select></div>
           <div className="pc-field"><label className="pc-label">Modul</label><input className="pc-input" value={draft.module||""} onChange={e=>setDraft({...draft,module:e.target.value})}/></div>
           <div className="pc-field"><label className="pc-label">Aufwand</label><select className="pc-input" value={draft.effort||"M"} onChange={e=>setDraft({...draft,effort:e.target.value})}><option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option></select></div>
+          <div className="pc-field"><label className="pc-label">Vibe-Schwierigkeit</label><select className="pc-input" value={draft.vibe_difficulty||""} onChange={e=>setDraft({...draft,vibe_difficulty:e.target.value||null})}><option value="">— nicht gesetzt —</option>{VIBE_DIFFICULTIES.map(v=><option key={v.id} value={v.id}>{v.label}</option>)}</select></div>
+          <div className="pc-field"><label className="pc-label">Vibe-Dauer (Schätzung)</label><select className="pc-input" value={draft.vibe_duration||""} onChange={e=>setDraft({...draft,vibe_duration:e.target.value||null})}><option value="">— nicht gesetzt —</option>{VIBE_DURATIONS.map(d=><option key={d} value={d}>{d}</option>)}</select></div>
           <div className="pc-field"><label className="pc-label">Bearbeiter</label><select className="pc-input" value={draft.team_member_id||""} onChange={e=>setDraft({...draft,team_member_id:e.target.value||null})}><option value="">Nicht zugewiesen</option>{teamMembers.map(member=><option key={member.id} value={member.id}>{member.name}</option>)}</select></div>
           <div className="pc-field"><label className="pc-label">Abhängigkeiten</label><select multiple className="pc-input" style={{minHeight:88}} value={draft.dependencies||[]} onChange={e=>setDraft({...draft,dependencies:Array.from(e.target.selectedOptions).map(option=>option.value)})}>{tasks.filter(item=>item.id!==draft.id).map(item=><option key={item.id} value={item.id}>{taskName(item)}</option>)}</select></div>
           <div className="pc-field form-full"><label className="pc-label">Akzeptanzkriterien · eine Zeile pro Kriterium</label><textarea rows={5} value={lines(draft.acceptance_criteria)} onChange={e=>setDraft({...draft,acceptance_criteria:e.target.value.split("\n")})}/></div>
@@ -1065,7 +1135,7 @@ function ProjectBoard({tasks,teamMembers,comments,checklist,githubLinks,mode,war
                 const allCount=checklist.filter(item=>item.task_id===task.id).length;
                 return <button className="task-card" key={task.id} onClick={()=>setSelected(task)}>
                   <div className="task-card-title">{taskName(task)}</div>
-                  <div className="task-card-meta"><span className={`badge ${task.priority==="high"?"bd-rd":task.priority==="low"?"bd-gy":"bd-yw"}`}>{task.priority||"medium"}</span>{task.module&&<span className="mini-tag">{task.module}</span>}<span className="mini-tag">{task.effort||"M"}</span></div>
+                  <div className="task-card-meta"><span className={`badge ${task.priority==="high"?"bd-rd":task.priority==="low"?"bd-gy":"bd-yw"}`}>{task.priority||"medium"}</span>{task.module&&<span className="mini-tag">{task.module}</span>}<span className="mini-tag">{task.effort||"M"}</span>{task.vibe_difficulty&&<span className={`mini-tag ${vibeDiffCls(task.vibe_difficulty)}`}>Vibe: {task.vibe_difficulty}</span>}{task.vibe_duration&&<span className="mini-tag">{task.vibe_duration}</span>}</div>
                   <div className="task-card-foot"><span>{member?.name||"Nicht zugewiesen"}</span><span className="task-gh">{link?.pr_open?"PR offen":link?.branch_exists?"Branch":"Kein GitHub"} · {doneCount}/{allCount}</span></div>
                 </button>;
               })}
@@ -1312,7 +1382,7 @@ function Terminal(){
   return(
     <div className="page">
       <div className="ph">
-        <div><h1 className="ptitle">Co<em>de</em></h1><p className="psub">Claude Code Chat · /home/ole/epikur</p></div>
+        <div><h1 className="ptitle">Co<em>de</em></h1><p className="psub">Agent Workspace · persönliche Accounts · isolierte Preview</p></div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           <span style={{display:"flex",alignItems:"center",gap:7,padding:"7px 14px",borderRadius:30,background:"rgba(255,255,255,.05)",border:"1px solid var(--gborder)",fontSize:11,fontFamily:"'IBM Plex Mono',monospace",color:"var(--t2)"}}>
             <span className="tstatd" style={{background:online===null?"#FBBf24":online?"#4ADE80":"#F87171",boxShadow:`0 0 7px ${online===null?"#FBBf24":online?"#4ADE80":"#F87171"}`}}></span>
@@ -1329,13 +1399,13 @@ function Terminal(){
             <div className="tdot" style={{background:"#FBBf24"}}></div>
             <div className="tdot" style={{background:"#4ADE80"}}></div>
           </div>
-          <span className="ttitle">Claude Code Chat — Zugriff auf Projekt und Server</span>
+          <span className="ttitle">Practio Code — Codex & Claude mit projektbezogenen Einstellungen</span>
         </div>
         {online===false?(
           <div className="toff">
-            <div style={{fontSize:15,fontWeight:600}}>Claude Chat nicht erreichbar</div>
+            <div style={{fontSize:15,fontWeight:600}}>Code Workspace nicht erreichbar</div>
             <div style={{fontSize:12,color:"var(--t2)",maxWidth:420,lineHeight:1.8,fontFamily:"'IBM Plex Mono',monospace",textAlign:"left"}}>
-              Der Claude-Chat-Dienst auf dem Server ist nicht erreichbar.<br/>
+              Der Code-Workspace-Dienst auf dem Server ist nicht erreichbar.<br/>
               Bitte den Dienst „webssh" und die Nginx-Konfiguration prüfen.
             </div>
             <button className="btn btn-g" onClick={()=>setKey(k=>k+1)}>Erneut prüfen</button>
@@ -1418,11 +1488,18 @@ function currentTaskIdentity(persons){
 function formatTaskList(tasks,persons){
   return tasks.map(t=>{
     const p=persons.find(x=>x.id===(t.team_member_id||t.assignee_id));
-    return`• ${p?p.name:'?'}: "${taskName(t)}" (id:"${t.id}")`;
+    const meta=[
+      t.priority&&`prio:${t.priority}`,
+      t.effort&&`effort:${t.effort}`,
+      t.module&&`modul:${t.module}`,
+      t.vibe_difficulty&&`vibe:${t.vibe_difficulty}`,
+      t.vibe_duration&&`dauer:${t.vibe_duration}`,
+    ].filter(Boolean).join(' ');
+    return`• ${p?p.name:'?'}: "${taskName(t)}" (id:"${t.id}"${meta?' '+meta:''})`;
   }).join('\n');
 }
 
-function buildTaskCtx(tasks,persons){
+function buildTaskCtx(tasks,persons,milestones,masterplans){
   const{username,person}=currentTaskIdentity(persons);
   const ownTasks=person?tasks.filter(t=>(t.team_member_id||t.assignee_id)===person.id):[];
   const otherTasks=person?tasks.filter(t=>(t.team_member_id||t.assignee_id)!==person.id):tasks;
@@ -1433,6 +1510,9 @@ function buildTaskCtx(tasks,persons){
   if(person)s+=`Neue Tasks ohne ausdrücklich genannte andere Zuweisung standardmäßig ${person.name} (id:"${person.id}") zuweisen.\n`;
   s+='GitHub: olesorgenfrey · Repos: '+Object.values(GITHUB_REPOS).join(', ')+'\n';
   if(persons.length)s+='Personen: '+persons.map(p=>`${p.name} (id:"${p.id}")`).join(', ')+'\n';
+  if(milestones&&milestones.length)s+='Meilensteine: '+milestones.map(ms=>`${ms.label} (id:"${ms.id}")`).join(', ')+'\n';
+  const allModules=(masterplans||[]).flatMap(mp=>Array.isArray(mp.modules)?mp.modules:[]).filter((v,i,a)=>a.indexOf(v)===i);
+  if(allModules.length)s+='Module: '+allModules.join(', ')+'\n';
   const ownOpen=ownTasks.filter(t=>t.status!=="done"&&!t.done);
   const otherOpen=otherTasks.filter(t=>t.status!=="done"&&!t.done);
   if(ownOpen.length)s+='Eigene offene Tasks (Priorität):\n'+formatTaskList(ownOpen,persons)+'\n';
@@ -1455,10 +1535,46 @@ function execTaskActions(responseText,tasks,persons,setTasks){
   const deleted=[];
   for(const a of acts){
     if(a.action==='create_task'){
+      const title=a.title||a.text||'Neuer Task';
       const p=persons.find(x=>x.id===a.assignee_id);
-      const row={id:makeId(),project_id:PROJECT_ID,title:a.text,text:a.text,description:"",acceptance_criteria:[],definition_of_done:[],meta:"",team_member_id:a.assignee_id,done:false,status:"backlog",priority:"medium",dependencies:[],effort:"M"};
+      const row={
+        id:makeId(),project_id:PROJECT_ID,
+        title,text:title,
+        description:a.description||"",
+        acceptance_criteria:Array.isArray(a.acceptance_criteria)?a.acceptance_criteria:[],
+        definition_of_done:Array.isArray(a.definition_of_done)?a.definition_of_done:[],
+        team_member_id:a.assignee_id||null,
+        milestone_id:a.milestone_id||null,
+        module:a.module||"",
+        priority:['high','medium','low'].includes(a.priority)?a.priority:'medium',
+        effort:['XS','S','M','L','XL'].includes(a.effort)?a.effort:'M',
+        vibe_difficulty:VIBE_DIFFICULTIES.find(v=>v.id===a.vibe_difficulty)?a.vibe_difficulty:null,
+        vibe_duration:VIBE_DURATIONS.includes(a.vibe_duration)?a.vibe_duration:null,
+        status:a.status||"backlog",
+        done:false,dependencies:[],sort_order:Date.now(),
+      };
       next=[...next,row];persisted.push(row);
-      results.push(`Task erstellt: "${a.text}"${p?` → ${p.name}`:''}`);}
+      results.push(`Task erstellt: "${title}"${p?` → ${p.name}`:''}`);}
+    else if(a.action==='update_task'){
+      const t=next.find(x=>x.id===a.id);
+      if(!t){results.push(`Task ${a.id} nicht gefunden`);continue;}
+      const fields={};
+      if(a.title)fields.title=fields.text=a.title;
+      if(a.description!==undefined)fields.description=a.description;
+      if(['high','medium','low'].includes(a.priority))fields.priority=a.priority;
+      if(['XS','S','M','L','XL'].includes(a.effort))fields.effort=a.effort;
+      if(a.status)fields.status=a.status;
+      if(a.module!==undefined)fields.module=a.module;
+      if(a.milestone_id!==undefined)fields.milestone_id=a.milestone_id;
+      if(a.assignee_id!==undefined)fields.team_member_id=a.assignee_id;
+      if(Array.isArray(a.acceptance_criteria))fields.acceptance_criteria=a.acceptance_criteria;
+      if(Array.isArray(a.definition_of_done))fields.definition_of_done=a.definition_of_done;
+      if(VIBE_DIFFICULTIES.find(v=>v.id===a.vibe_difficulty))fields.vibe_difficulty=a.vibe_difficulty;
+      if(VIBE_DURATIONS.includes(a.vibe_duration))fields.vibe_duration=a.vibe_duration;
+      const updated={...t,...fields};
+      updated.done=updated.status==='done';
+      next=next.map(x=>x.id===a.id?updated:x);persisted.push(updated);
+      results.push(`"${t.text||a.id}" aktualisiert`);}
     else if(a.action==='toggle_task'){
       const t=next.find(x=>x.id===a.id);
       if(!t){results.push(`Task ${a.id} nicht gefunden`);continue;}
@@ -1478,7 +1594,7 @@ function execTaskActions(responseText,tasks,persons,setTasks){
   return{clean,summary:results.length?'\n\n✓ '+results.join(' · '):''};
 }
 
-function AiChat({tasks,setTasks,persons}){
+function AiChat({tasks,setTasks,persons,milestones,masterplans}){
   const [open,setOpen]=useState(false);
   const [provider,setProvider]=useState(()=>sessionStorage.getItem('aiProvider')||'claude');
   const initialChatKey=`aiDashChatId:${sessionStorage.getItem('aiProvider')||'claude'}`;
@@ -1589,7 +1705,7 @@ function AiChat({tasks,setTasks,persons}){
     if(!id){setMsgs(ms=>[...ms,{role:'assistant',content:'Fehler: Chat konnte nicht erstellt werden.'}]);return;}
     setMsgs(ms=>[...ms,{role:'user',content:text}]);
     setLoading(true);
-    const taskCtx=buildTaskCtx(tasks,persons);
+    const taskCtx=buildTaskCtx(tasks,persons,milestones||[],masterplans||[]);
     try{
       const r=await fetch(`/api/${provider}/chat`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversationId:id,message:text,context:taskCtx.context,model,effort})});
       const d=await r.json();
@@ -1688,7 +1804,7 @@ function App(){
   const initial=useRef(loadLocal()).current;
   const [page,setPage]=useState("overview");
   const [db,setDb]=useState("loading");
-  const [projectMode,setProjectMode]=useState(initial.projectMode||"local");
+  const [projectMode,setProjectMode]=useState("loading");
   const [projectWarning,setProjectWarning]=useState("");
   const [persons,setPersons]=useState(initial.persons);
   const [pendingCount,setPendingCount]=useState(0);
@@ -1848,12 +1964,12 @@ function App(){
       const current=loadLocal();
       localStorage.setItem(STORAGE_KEY,JSON.stringify({
         ...current,persons,leads,tasks,milestones,costs,scenarios,masterplans,teamMembers,
-        taskComments,checklistItems,githubLinks,aiReviews,activityLog,projectMode,savedAt
+        taskComments,checklistItems,githubLinks,aiReviews,activityLog,savedAt
       }));
       setSavedAt(savedAt);
     },250);
     return()=>clearTimeout(timer);
-  },[loaded,persons,leads,tasks,milestones,costs,scenarios,masterplans,teamMembers,taskComments,checklistItems,githubLinks,aiReviews,activityLog,projectMode]);
+  },[loaded,persons,leads,tasks,milestones,costs,scenarios,masterplans,teamMembers,taskComments,checklistItems,githubLinks,aiReviews,activityLog]);
 
   const open=tasks.filter(t=>!t.done).length;
 
@@ -1892,7 +2008,7 @@ function App(){
           <div className="sbfoot">„Schweigepflicht beginnt bei der Software"</div>
         </nav>
         {showAdmin&&<AdminPanel onClose={()=>{setShowAdmin(false);fetch('/api/admin/users/pending').then(r=>r.json()).then(d=>setPendingCount(Array.isArray(d)?d.length:0)).catch(()=>{});}}/>}
-        <AiChat tasks={tasks} setTasks={setTasks} persons={teamMembers}/>
+        <AiChat tasks={tasks} setTasks={setTasks} persons={teamMembers} milestones={milestones} masterplans={masterplans}/>
         <main role="main" style={{flex:1,minWidth:0,paddingBottom:40}}>
           {page==="overview"   &&<Overview    leads={leads} tasks={tasks} persons={persons} teamMembers={teamMembers} db={db}/>}
           {page==="masterplan" &&<MasterplanPage masterplans={masterplans} milestones={milestones} tasks={tasks} teamMembers={teamMembers} mode={projectMode} warning={projectWarning} saveResource={saveResource} onOpenBoard={()=>setPage("tasks")}/>}
