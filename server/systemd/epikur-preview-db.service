@@ -1,0 +1,13 @@
+[Unit]
+Description=Epikur preview database container
+After=docker.service
+Requires=docker.service
+Before=epikur-preview.service epikur-patient-preview.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/docker start epikur-preview-db
+
+[Install]
+WantedBy=multi-user.target

@@ -69,6 +69,7 @@ const PROJECTS = {
     service: 'epikur-preview.service',
     previewUrl: 'https://dashboard.praxis-sorgenfrey.de:8443',
     healthUrl: 'http://127.0.0.1:3010/',
+    warmupPaths: ['/', '/dashboard', '/patienten', '/kalender', '/rechnungen', '/nachrichten'],
     liveUrl: 'https://epikur.praxis-sorgenfrey.de',
     liveHealthUrl: 'http://127.0.0.1:3000/',
     deployCommand: '/home/ole/bin/epikur-auto-deploy',
@@ -81,6 +82,7 @@ const PROJECTS = {
     service: 'epikur-patient-preview.service',
     previewUrl: 'https://dashboard.praxis-sorgenfrey.de:8444',
     healthUrl: 'http://127.0.0.1:3011/',
+    warmupPaths: ['/', '/termine', '/nachrichten', '/frageboegen', '/profil'],
     liveUrl: 'https://patienten.praxis-sorgenfrey.de',
     liveHealthUrl: 'http://127.0.0.1:3001/',
     deployCommand: '/home/ole/bin/epikur-patient-auto-deploy',
@@ -255,6 +257,7 @@ async function deployProject(project) {
   } else if (project.deployType === 'dashboard') {
     const sourceServer = path.join(project.repo, 'server/webssh-server.js');
     const sourceProjectControl = path.join(project.repo, 'server/project-control-service.js');
+    const sourceSystemd = path.join(project.repo, 'server/systemd');
     const activeServer = '/home/ole/webssh/server.js';
     const activeProjectControl = '/home/ole/webssh/project-control-service.js';
     restartRequired = filesDiffer(sourceServer, activeServer) || filesDiffer(sourceProjectControl, activeProjectControl);
@@ -267,6 +270,12 @@ async function deployProject(project) {
       `/usr/bin/install -o ole -g ole -m 644 ${JSON.stringify(path.join(project.repo, 'server/chat.html'))} /home/ole/webssh/public/chat.html`,
       `/usr/bin/install -o ole -g ole -m 644 ${JSON.stringify(sourceServer)} ${JSON.stringify(activeServer)}`,
       `/usr/bin/install -o ole -g ole -m 644 ${JSON.stringify(sourceProjectControl)} ${JSON.stringify(activeProjectControl)}`,
+      'sudo /usr/bin/mkdir -p /etc/systemd/system/epikur-preview.service.d /etc/systemd/system/epikur-patient-preview.service.d',
+      `sudo /usr/bin/install -o root -g root -m 644 ${JSON.stringify(path.join(sourceSystemd, 'epikur-preview-db.service'))} /etc/systemd/system/epikur-preview-db.service`,
+      `sudo /usr/bin/install -o root -g root -m 644 ${JSON.stringify(path.join(sourceSystemd, 'epikur-preview-performance.conf'))} /etc/systemd/system/epikur-preview.service.d/performance.conf`,
+      `sudo /usr/bin/install -o root -g root -m 644 ${JSON.stringify(path.join(sourceSystemd, 'epikur-patient-preview-performance.conf'))} /etc/systemd/system/epikur-patient-preview.service.d/performance.conf`,
+      'sudo /usr/bin/systemctl daemon-reload',
+      'sudo /usr/bin/systemctl enable --now epikur-preview-db.service epikur-preview.service epikur-patient-preview.service',
     ].join(' && ');
     await runShell(command, 2 * 60 * 1000);
   }
@@ -287,6 +296,7 @@ async function waitForPreview(url, timeout = 90_000) {
 let publishQueue = Promise.resolve();
 let deployQueue = Promise.resolve();
 const previewActivationPromises = new Map();
+const warmedPreviewProjects = new Set();
 
 function activatePreviewProject(project) {
   const existing = previewActivationPromises.get(project.id);
@@ -294,10 +304,18 @@ function activatePreviewProject(project) {
 
   const activation = (async () => {
     if (!project.service || !project.healthUrl) return { coldStart: false };
-    if (await checkHttp(project.healthUrl)) return { coldStart: false };
-    await runShell(`sudo systemctl start ${project.service}`);
-    await waitForPreview(project.healthUrl, 45_000);
-    return { coldStart: true };
+    const running = await checkHttp(project.healthUrl);
+    if (!running) {
+      await runShell(`sudo systemctl start ${project.service}`);
+      await waitForPreview(project.healthUrl, 45_000);
+    }
+    if (!warmedPreviewProjects.has(project.id)) {
+      for (const route of project.warmupPaths || ['/']) {
+        await checkHttp(new URL(route, project.healthUrl).toString());
+      }
+      warmedPreviewProjects.add(project.id);
+    }
+    return { coldStart: !running };
   })().finally(() => {
     if (previewActivationPromises.get(project.id) === activation) {
       previewActivationPromises.delete(project.id);
