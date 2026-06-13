@@ -8,6 +8,7 @@ Before=epikur-preview.service epikur-patient-preview.service
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/bin/docker start epikur-preview-db
+ExecStartPost=/bin/bash -c 'for attempt in $(seq 1 60); do if (echo > /dev/tcp/127.0.0.1/3307) 2>/dev/null; then exit 0; fi; sleep 1; done; exit 1'
 
 [Install]
 WantedBy=multi-user.target
